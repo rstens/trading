@@ -1,0 +1,139 @@
+# TradingAgents — single-command bring-up.
+#
+# Usage:
+#   docker compose up -d                   # web UI on http://localhost:8000
+#                                          # + Postgres + migrations (auto-applied)
+#   docker compose logs -f web             # tail the server log
+#   docker compose down                    # stop everything (keeps volumes)
+#   docker compose down -v                 # nuke volumes too
+#
+# Optional profiles:
+#   docker compose --profile cli run --rm cli analyze        # interactive CLI
+#   docker compose --profile cli run --rm --no-TTY cli batch NVDA AAPL
+#   docker compose --profile ollama up -d ollama             # local LLM backend
+#
+# First-time setup: copy .env.example to .env and fill in at least one
+# provider API key (e.g. OPENAI_API_KEY) — or use the ollama profile.
+
+services:
+  # ----- Postgres + pgvector -----
+  # Persistence is on by default. Set TRADINGAGENTS_DATABASE_URL='' in
+  # .env to disable the DB (the app falls back to markdown log + JSON
+  # cache; useful for local-only quick tests).
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: tradingagents
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tradingagents}
+      POSTGRES_DB: tradingagents
+    # PG18+ wants the mount at /var/lib/postgresql so it can use
+    # major-version subdirectories (e.g. .../18/docker/) for
+    # pg_upgrade --link. Mounting at /var/lib/postgresql/data the
+    # PG≤17 way refuses to start with an explicit "in 18+, these
+    # Docker images are configured to store database data in a format
+    # which is compatible with pg_ctlcluster" error.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    # Host port mapping is optional — set POSTGRES_PORT=5432 in .env
+    # only if you need to reach the DB from the host (e.g. for psql or
+    # migration scripts run from outside compose). Default avoids
+    # clashing with a host-side Postgres.
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradingagents -d tradingagents"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # ----- One-shot migrator -----
+  # Runs `python -m tradingagents.persistence upgrade` and exits.
+  # `web` depends on this completing successfully, so migrations are
+  # applied before the server accepts traffic.
+  migrate:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRADINGAGENTS_DATABASE_URL: postgresql+psycopg://tradingagents:${POSTGRES_PASSWORD:-tradingagents}@postgres:5432/tradingagents
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["python", "-m", "tradingagents.persistence", "upgrade"]
+    restart: "no"
+
+  # ----- Web UI (default `up` target) -----
+  # FastAPI + HTMX on port 8000. Binds 0.0.0.0 inside the container so
+  # the host port mapping reaches it. Override the host-side port via
+  # TRADINGAGENTS_PORT in .env if 8000 is taken.
+  web:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRADINGAGENTS_DATABASE_URL: postgresql+psycopg://tradingagents:${POSTGRES_PASSWORD:-tradingagents}@postgres:5432/tradingagents
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    ports:
+      - "${TRADINGAGENTS_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["serve", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    healthcheck:
+      # Pure-Python check — no need to bake curl/wget into the image.
+      # The favicon endpoint is cheap and returns 200 once routes are
+      # registered.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/favicon.ico', timeout=2).status"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  # ----- Interactive CLI (opt-in profile) -----
+  # For the questionary-based interactive flow or non-interactive batch.
+  # Shares the persistence volume + DB so anything done here lands in
+  # the same place the web UI reads from.
+  cli:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRADINGAGENTS_DATABASE_URL: postgresql+psycopg://tradingagents:${POSTGRES_PASSWORD:-tradingagents}@postgres:5432/tradingagents
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    tty: true
+    stdin_open: true
+    profiles:
+      - cli
+
+  # ----- Optional local LLM backend -----
+  # `docker compose --profile ollama up -d ollama` starts Ollama at
+  # http://ollama:11434 inside the compose network and
+  # http://localhost:11434 from the host. The web UI's provider
+  # dropdown picks it up automatically when OLLAMA_BASE_URL is set to
+  # http://ollama:11434/v1 in .env (or kept default 127.0.0.1 for the
+  # host-side caller).
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    profiles:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  tradingagents_data:
+  ollama_data:

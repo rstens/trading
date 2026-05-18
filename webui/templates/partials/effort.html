@@ -1,0 +1,8 @@
+<div class="field mt">
+  <label for="{{ field_name }}">{{ label }}</label>
+  <select id="{{ field_name }}" name="{{ field_name }}">
+    {% for display, value in choices %}
+      <option value="{{ value }}"{% if selected is defined and selected == value %} selected{% endif %}>{{ display }}</option>
+    {% endfor %}
+  </select>
+</div>

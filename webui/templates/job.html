@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ job.selections.ticker }} — {{ job.selections.analysis_date }} — TradingAgents{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="job-header">
+    <h1>
+      {{ job.selections.ticker }}{% if job.company_name %} — {{ job.company_name }}{% endif %}
+      <small>· {{ job.selections.analysis_date }}</small>
+    </h1>
+    <a href="/" class="back">&larr; New analysis</a>
+  </div>
+
+  <div id="job-status"
+       hx-get="/htmx/jobs/{{ job.id }}/status"
+       hx-trigger="load, every 2s"
+       hx-swap="morph:innerHTML">
+    <!-- First load happens immediately; subsequent polls every 2 s.
+         hx-swap="morph:innerHTML" uses idiomorph (loaded in base.html) so
+         elements that didn't change between polls are NOT re-rendered —
+         no flicker, no JS-set state loss. Combined with hx-preserve on
+         each tab button, the user's active tab survives every poll. -->
+    <p class="dim">Loading status…</p>
+  </div>
+</section>
+{% endblock %}

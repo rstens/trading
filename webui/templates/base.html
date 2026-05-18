@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}TradingAgents{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', path='favicon.svg') }}">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  <!-- Idiomorph: DOM-diffing swap so polling doesn't tear down identical content.
+       Required by job_status.html's hx-swap="morph:innerHTML". -->
+  <script src="https://unpkg.com/idiomorph@0.7.4/dist/idiomorph-ext.min.js" defer></script>
+</head>
+<body hx-ext="morph">
+  <header class="topbar">
+    <a href="/" class="brand">TradingAgents</a>
+    <span class="tagline">Multi-Agents LLM Financial Trading Framework</span>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    // Convert server-emitted UTC timestamps to the browser's local
+    // timezone, formatted as ISO 8601 date (YYYY-MM-DD, no time).
+    // Server templates render datetimes via the `local_dt` Jinja filter
+    // (webui/app.py) which produces:
+    //   <time class="local-ts" datetime="2026-05-18T00:23:00+00:00">
+    //     2026-05-18
+    //   </time>
+    // We re-text-content each one with the date taken from the user's
+    // local zone so a PST user sees "2026-05-17" for a UTC timestamp
+    // that just rolled into the next day. Runs on page load AND after
+    // every HTMX swap so polled fragments are localized too.
+    (function () {
+      function pad(n) { return n < 10 ? '0' + n : String(n); }
+      function fmtDate(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      }
+      function fmtDateTime(d) {
+        return fmtDate(d) + ' ' +
+               pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      }
+      function localizeTimestamps(root) {
+        var scope = root || document;
+        scope.querySelectorAll('time.local-ts').forEach(function (el) {
+          var iso = el.getAttribute('datetime');
+          if (!iso || el.dataset.localized === '1') return;
+          var d = new Date(iso);
+          if (isNaN(d.getTime())) return;
+          el.textContent = fmtDate(d);
+          el.dataset.localized = '1';
+        });
+        // Full-precision variant: YYYY-MM-DD HH:MM:SS (24-hour). Used by the
+        // Recent jobs / History Started columns.
+        scope.querySelectorAll('time.local-ts-full').forEach(function (el) {
+          var iso = el.getAttribute('datetime');
+          if (!iso || el.dataset.localized === '1') return;
+          var d = new Date(iso);
+          if (isNaN(d.getTime())) return;
+          el.textContent = fmtDateTime(d);
+          el.dataset.localized = '1';
+        });
+      }
+      // Initial page load.
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { localizeTimestamps(); });
+      } else {
+        localizeTimestamps();
+      }
+      // After every HTMX swap (polled job/batch status fragments).
+      document.body.addEventListener('htmx:afterSwap', function (e) {
+        localizeTimestamps(e.target);
+      });
+      // idiomorph fires its own afterSwap via the morph extension; the
+      // above handler catches it too. As a belt-and-braces, also hook
+      // afterSettle which fires once mutations are finalized.
+      document.body.addEventListener('htmx:afterSettle', function (e) {
+        localizeTimestamps(e.target);
+      });
+    })();
+
+    // Click-to-sort for tables marked `.sortable`. Reads from the
+    // <time datetime="..."> attribute when present so the Started
+    // column sorts by full UTC precision (not the YYYY-MM-DD that
+    // localizeTimestamps wrote into textContent). Numeric columns
+    // are auto-detected. Cycles: none → asc → desc → asc → …
+    (function () {
+      function sortKey(cell) {
+        var t = cell.querySelector('time[datetime]');
+        if (t) return t.getAttribute('datetime') || '';
+        return (cell.textContent || '').trim();
+      }
+      function compare(a, b) {
+        var an = parseFloat(a), bn = parseFloat(b);
+        if (!isNaN(an) && !isNaN(bn) && /^-?\d+(\.\d+)?$/.test(a) && /^-?\d+(\.\d+)?$/.test(b)) {
+          return an - bn;
+        }
+        return a.localeCompare(b);
+      }
+      function sortBy(table, colIdx, dir) {
+        var tbody = table.tBodies[0];
+        if (!tbody) return;
+        var rows = Array.from(tbody.rows);
+        rows.sort(function (r1, r2) {
+          var c = compare(sortKey(r1.cells[colIdx]), sortKey(r2.cells[colIdx]));
+          return dir === 'asc' ? c : -c;
+        });
+        rows.forEach(function (r) { tbody.appendChild(r); });
+      }
+      function wire(table) {
+        if (table.dataset.sortableWired === '1') return;
+        table.dataset.sortableWired = '1';
+        if (!table.tHead || !table.tHead.rows.length) return;
+        var ths = table.tHead.rows[0].cells;
+        Array.from(ths).forEach(function (th, idx) {
+          // Skip headers that have no label (e.g. the trailing "open" link col).
+          if (!th.textContent.trim()) {
+            th.classList.add('no-sort');
+            return;
+          }
+          th.addEventListener('click', function () {
+            var asc = th.classList.contains('sort-asc');
+            Array.from(ths).forEach(function (o) {
+              o.classList.remove('sort-asc', 'sort-desc');
+            });
+            var next = asc ? 'desc' : 'asc';
+            th.classList.add('sort-' + next);
+            sortBy(table, idx, next);
+          });
+        });
+      }
+      function init(root) {
+        (root || document).querySelectorAll('table.sortable').forEach(wire);
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { init(); });
+      } else {
+        init();
+      }
+      document.body.addEventListener('htmx:afterSwap', function (e) { init(e.target); });
+      document.body.addEventListener('htmx:afterSettle', function (e) { init(e.target); });
+    })();
+  </script>
+</body>
+</html>

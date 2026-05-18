@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Batch {{ batch.id }} — TradingAgents{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="job-header">
+    <h1>
+      Batch · {{ batch.total }} ticker{{ "s" if batch.total != 1 else "" }}
+      <small>· {{ batch.submitted_at | local_dt }}</small>
+    </h1>
+    <a href="/batch" class="back">&larr; New batch</a>
+  </div>
+
+  <div id="batch-status"
+       hx-get="/htmx/batches/{{ batch.id }}/status"
+       hx-trigger="load, every 2s"
+       hx-swap="morph:innerHTML">
+    <p class="dim">Loading status…</p>
+  </div>
+</section>
+{% endblock %}

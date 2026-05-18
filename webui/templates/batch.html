@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}TradingAgents — Batch analysis{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="job-header">
+    <h1>Batch analysis</h1>
+    <a href="/" class="back">&larr; Single-ticker form</a>
+  </div>
+
+  <p class="dim">
+    Paste a list of tickers (one per line, or comma- / semicolon-separated).
+    Three are analyzed in parallel; the rest queue. If the LLM hits a rate-limit,
+    the batch pauses for 2 hours then resumes from where it stopped.
+  </p>
+
+  <form id="batch-form"
+        hx-post="/api/batches"
+        hx-target="#form-errors"
+        hx-swap="innerHTML">
+
+    <div id="form-errors"></div>
+
+    <div class="field">
+      <label for="tickers">Tickers</label>
+      <textarea id="tickers" name="tickers" rows="6" required
+                placeholder="NVDA&#10;AAPL&#10;MSFT&#10;GOOGL&#10;TSM.NS&#10;7203.T"></textarea>
+      <p class="dim" style="margin: 0.3rem 0 0; font-size: 0.8rem;">
+        Order is preserved; duplicates and blank lines are dropped automatically.
+      </p>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="analysis_date">Analysis date (applied to every ticker)</label>
+        <input type="date" id="analysis_date" name="analysis_date"
+               value="{{ defaults.analysis_date }}" required>
+      </div>
+      <div class="field">
+        <label for="research_depth">Research depth (debate rounds)</label>
+        <input type="number" id="research_depth" name="research_depth"
+               value="{{ defaults.research_depth }}" min="1" max="10">
+      </div>
+    </div>
+
+    <fieldset class="field">
+      <legend>Analysts</legend>
+      <div class="checkbox-row">
+        {% for key, label in analysts %}
+          <label class="checkbox">
+            <input type="checkbox" name="analysts" value="{{ key }}"
+                   {% if key in defaults.analysts %}checked{% endif %}>
+            <span>{{ "Sentiment" if key == "social" else label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="llm_provider">LLM provider</label>
+        <select id="llm_provider" name="llm_provider"
+                hx-get="/htmx/models"
+                hx-trigger="change"
+                hx-target="#model-selects"
+                hx-include="[name='llm_provider']">
+          {% for display, key, _url in providers %}
+            <option value="{{ key }}" {% if key == defaults.llm_provider %}selected{% endif %}>
+              {{ display }}
+            </option>
+          {% endfor %}
+        </select>
+        <div hx-get="/htmx/effort"
+             hx-trigger="change from:#llm_provider"
+             hx-include="[name='llm_provider']"
+             hx-swap="innerHTML"
+             id="effort-block">
+          {{ effort_html | safe }}
+        </div>
+      </div>
+      <div class="field">
+        <label for="output_language">Output language</label>
+        <select id="output_language" name="output_language">
+          {% for lang in ["English","Chinese","Spanish","French","German","Japanese","Korean","Portuguese","Russian"] %}
+            <option value="{{ lang }}" {% if lang == defaults.output_language %}selected{% endif %}>{{ lang }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div id="model-selects" class="grid-2">
+      {% include "partials/models.html" %}
+    </div>
+
+    <div class="actions">
+      <label class="checkbox" style="margin-right: 1rem; vertical-align: middle;">
+        <input type="checkbox" name="force_refresh" value="true">
+        <span>Force re-run <span class="dim">(ignore cached results from the last 7 days)</span></span>
+      </label>
+      <button type="submit" class="primary">Queue batch</button>
+    </div>
+  </form>
+</section>
+
+{% if batches %}
+<section class="panel">
+  <h2>Recent batches</h2>
+  <table class="jobs-table">
+    <thead>
+      <tr><th>Submitted</th><th>Tickers</th><th>Status</th><th>Done</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for b in batches[:20] %}
+      <tr>
+        <td>{{ b.submitted_at | local_dt }}</td>
+        <td>{{ b.total }}</td>
+        <td class="status status-{{ b.status }}">{{ b.status_label }}</td>
+        <td>{{ b.done_count }} / {{ b.total }}</td>
+        <td><a href="/batches/{{ b.id }}">open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

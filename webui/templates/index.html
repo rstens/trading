@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}TradingAgents — New analysis{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <details class="collapse" open>
+    <summary>
+      <h1>Selection</h1>
+      <a href="/batch" class="back" onclick="event.stopPropagation()">Batch a list of tickers &rarr;</a>
+    </summary>
+
+  {% if running_count %}
+    <div class="banner banner-info">
+      {{ running_count }} analysis{{ "es" if running_count != 1 else "" }} currently running.
+      Yours will start in parallel — find it in <em>Recent jobs</em> after submission.
+    </div>
+  {% endif %}
+
+  {% if no_keys_warning %}
+    <div class="banner banner-error">
+      No provider API keys are set in your environment. Add at least one
+      <code>*_API_KEY</code> entry to <code>.env</code> and restart the
+      server. Only Ollama (which needs no key) is selectable until then.
+    </div>
+  {% endif %}
+
+  <form id="run-form"
+        hx-post="/api/jobs"
+        hx-target="#form-errors"
+        hx-swap="innerHTML">
+
+    <div id="form-errors"></div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="ticker">Ticker</label>
+        <input type="text" id="ticker" name="ticker" required
+               value="{{ defaults.ticker }}"
+               placeholder="e.g. NVDA, CNC.TO, 7203.T, 0700.HK"
+               style="text-transform: uppercase;"
+               oninput="this.value = this.value.toUpperCase()"
+               hx-get="/htmx/company-name"
+               hx-trigger="load delay:200ms, change, keyup changed delay:500ms"
+               hx-target="#company-name-display"
+               hx-swap="innerHTML">
+        <div id="company-name-display" class="company-name-display"></div>
+      </div>
+
+      <div class="field">
+        <label for="analysis_date">Analysis date</label>
+        <input type="date" id="analysis_date" name="analysis_date"
+               value="{{ defaults.analysis_date }}" required>
+      </div>
+    </div>
+
+    <fieldset class="field">
+      <legend>Analysts</legend>
+      <div class="checkbox-row">
+        {% for key, label in analysts %}
+          <label class="checkbox">
+            <input type="checkbox" name="analysts" value="{{ key }}"
+                   {% if key in defaults.analysts %}checked{% endif %}>
+            <span>{{ "Sentiment" if key == "social" else label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="llm_provider">LLM provider</label>
+        <select id="llm_provider" name="llm_provider"
+                hx-get="/htmx/models"
+                hx-trigger="change"
+                hx-target="#model-selects"
+                hx-include="[name='llm_provider']">
+          {% for display, key, _url in providers %}
+            <option value="{{ key }}" {% if key == defaults.llm_provider %}selected{% endif %}>
+              {{ display }}
+            </option>
+          {% endfor %}
+        </select>
+        <!-- Effort/thinking selector reacts to provider changes via a second HTMX hook -->
+        <div hx-get="/htmx/effort"
+             hx-trigger="change from:#llm_provider"
+             hx-include="[name='llm_provider']"
+             hx-swap="innerHTML"
+             id="effort-block">
+          {{ effort_html | safe }}
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="research_depth">Research depth (debate rounds)</label>
+        <input type="number" id="research_depth" name="research_depth"
+               value="{{ defaults.research_depth }}" min="1" max="10">
+        <label for="output_language" class="mt">Output language</label>
+        <select id="output_language" name="output_language">
+          {% for lang in ["English", "Chinese", "Spanish", "French", "German", "Japanese", "Korean", "Portuguese", "Russian"] %}
+            <option value="{{ lang }}" {% if lang == defaults.output_language %}selected{% endif %}>{{ lang }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div id="model-selects" class="grid-2">
+      {% include "partials/models.html" %}
+    </div>
+
+    <div class="actions">
+      <label class="checkbox" style="margin-right: 1rem; vertical-align: middle;">
+        <input type="checkbox" name="force_refresh" value="true">
+        <span>Force re-run <span class="dim">(ignore cached results from the last 7 days)</span></span>
+      </label>
+      <button type="submit" class="primary">Start analysis</button>
+    </div>
+  </form>
+  </details>
+</section>
+
+{% macro jobs_table(rows) %}
+<table class="jobs-table sortable">
+  <thead>
+    <tr><th>Started</th><th>Ticker</th><th>Date</th><th>Status</th><th>Decision</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for j in rows %}
+    <tr>
+      <td>{% if j.started_at %}{{ j.started_at | local_dt_full }}{% else %}—{% endif %}</td>
+      <td>{{ j.selections.ticker }}</td>
+      <td>{{ j.selections.analysis_date }}</td>
+      <td class="status status-{{ j.status }}">{{ j.status_label }}</td>
+      <td>{{ j.decision or "—" }}</td>
+      <td><a href="/jobs/{{ j.id }}">open</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{% if jobs %}
+<section class="panel">
+  <details class="collapse" open>
+    <summary><h2>Recent jobs</h2></summary>
+    {{ jobs_table(jobs) }}
+  </details>
+</section>
+{% endif %}
+
+{% if history %}
+<section class="panel">
+  <details class="collapse">
+    <summary><h2>History <span class="dim">({{ history | length }})</span></h2></summary>
+    {{ jobs_table(history) }}
+  </details>
+</section>
+{% endif %}
+{% endblock %}

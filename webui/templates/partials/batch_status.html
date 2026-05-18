@@ -1,0 +1,91 @@
+{# Polled batch status. Re-uses idiomorph swap on the parent so unchanged
+   ticker rows aren't re-rendered. #}
+
+<div class="status-block">
+  <div class="status-line">
+    <span class="status-badge status-{{ batch.status }}">{{ batch.status_label }}</span>
+    <span class="status-current">
+      {{ batch.done_count }} / {{ batch.total }} done
+      {% set p = batch.progress %}
+      <span class="dim">
+        ·
+        {% if p.get('running') %}{{ p['running'] }} running{% endif %}
+        {% if p.get('queued') %}· {{ p['queued'] }} queued{% endif %}
+        {% if p.get('error') %}· <span style="color:var(--error)">{{ p['error'] }} failed</span>{% endif %}
+        {% if p.get('cancelled') %}· {{ p['cancelled'] }} stopped{% endif %}
+        {% if p.get('rate_limited') %}· <span style="color:var(--warn)">{{ p['rate_limited'] }} retrying</span>{% endif %}
+      </span>
+    </span>
+
+    {% if batch.status in ("running", "paused", "queued") %}
+      <button type="button"
+              class="stop-btn"
+              {% if batch.cancel_requested %}disabled{% endif %}
+              hx-post="/api/batches/{{ batch.id }}/cancel"
+              hx-target="#batch-status"
+              hx-swap="innerHTML"
+              hx-confirm="Stop this batch? In-flight tickers will finish; queued ones will be marked stopped.">
+        {{ "Stopping…" if batch.cancel_requested else "Stop batch" }}
+      </button>
+    {% endif %}
+  </div>
+
+  {% if batch.total > 0 %}
+  <div class="progress">
+    <div class="progress-bar"
+         style="width: {{ (100 * batch.done_count // batch.total) if batch.total else 0 }}%"></div>
+  </div>
+  {% endif %}
+
+  {% if batch.status == "paused" and batch.paused_until %}
+    <p class="banner banner-info" style="margin-top: 0.75rem;">
+      Rate limit hit — batch paused until <strong>{{ batch.paused_until | local_dt }}</strong>.
+      The rate-limited ticker is re-queued to run first on resume.
+    </p>
+  {% endif %}
+</div>
+
+<table class="jobs-table" style="margin-top: 1rem;">
+  <thead>
+    <tr><th>#</th><th>Ticker</th><th>Status</th><th>Attempts</th><th>Detail</th></tr>
+  </thead>
+  <tbody>
+    {% for t in batch.tickers %}
+    <tr id="batch-ticker-{{ loop.index }}">
+      <td>{{ loop.index }}</td>
+      <td>
+        {{ t.ticker }}
+        {% if t.company_name %}<span class="dim">— {{ t.company_name }}</span>{% endif %}
+      </td>
+      <td class="status status-{{ t.status }}">{{ t.status_label }}</td>
+      <td>{{ t.attempts or 0 }}</td>
+      <td>
+        {% if t.job_id %}
+          <a href="/jobs/{{ t.job_id }}">open</a>
+        {% else %}
+          <span class="dim">—</span>
+        {% endif %}
+        {% if t.error %}
+          <details style="display: inline-block; margin-left: 0.5rem;">
+            <summary class="dim">err</summary>
+            <pre style="font-size:0.75rem; white-space:pre-wrap; max-width:60ch;">{{ t.error }}</pre>
+          </details>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if batch.status in ("done", "cancelled") %}
+<script>
+// Terminal — stop polling.
+(function () {
+  var parent = document.getElementById('batch-status');
+  if (parent && parent.getAttribute('hx-trigger')) {
+    parent.setAttribute('hx-trigger', 'none');
+    if (window.htmx) window.htmx.process(parent);
+  }
+})();
+</script>
+{% endif %}

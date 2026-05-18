@@ -1,0 +1,199 @@
+{# Polled fragment. Tabs render off job.partial_state which is populated
+   incrementally by _ProgressCallback as each agent finishes — the user
+   sees results show up as soon as they're ready, then accumulate. Polling
+   continues at 2 s while running and self-disables on terminal state. #}
+
+{% if job.from_cache and job.cached_at %}
+  <div class="banner banner-info">
+    Cached result from {{ job.cached_at | local_dt }}.
+    To regenerate, go back to the form and tick <em>Force re-run</em>.
+  </div>
+{% endif %}
+
+<div class="status-block">
+  <div class="status-line">
+    <span class="status-badge status-{{ job.status }}">{{ job.status_label }}</span>
+    {% if job.status == "running" %}
+      <span class="status-current">
+        {% if job.cancel_requested %}
+          Cancelling… <span class="dim">(waiting for the in-flight LLM call to finish)</span>
+        {% else %}
+          {{ job.current_agent or "starting…" }}
+          <span class="dim">({{ job.sections_done() }} / {{ total_agents }} agents complete)</span>
+        {% endif %}
+      </span>
+    {% elif job.status == "done" %}
+      <span class="status-current">
+        Decision: <strong>{{ job.decision or "—" }}</strong>
+      </span>
+    {% elif job.status == "cancelled" %}
+      <span class="status-current">
+        Cancelled. Partial reports below are from agents that finished before the stop.
+      </span>
+    {% elif job.status == "error" %}
+      <span class="status-current">{{ job.error or "unknown error" }}</span>
+    {% endif %}
+
+    {# Stop button — only meaningful while the job is mid-flight. Once
+       the cancel flag is set we render it disabled so the user can't
+       click it twice. #}
+    {% if job.status in ("running", "queued") %}
+      <button type="button"
+              class="stop-btn"
+              {% if job.cancel_requested %}disabled{% endif %}
+              hx-post="/api/jobs/{{ job.id }}/cancel"
+              hx-target="#job-status"
+              hx-swap="innerHTML"
+              hx-confirm="Stop this analysis? Reports already produced will remain visible.">
+        {{ "Stopping…" if job.cancel_requested else "Stop analysis" }}
+      </button>
+    {% endif %}
+  </div>
+
+  {% if job.status != "error" %}
+  <div class="progress">
+    <div class="progress-bar" style="width: {{ progress_pct }}%"></div>
+  </div>
+  {% endif %}
+
+</div>
+
+{% if job.status == "error" %}
+  <div class="panel error-block">
+    <h3>Run failed</h3>
+    <pre>{{ job.traceback or job.error }}</pre>
+  </div>
+{% endif %}
+
+{# Render tabs whenever ANY section has populated content. partial_state
+   grows over time as the _ProgressCallback absorbs each node's output. #}
+{% set ready_sections = [] %}
+{% for key, label, src in tab_sections %}
+  {% if job.partial_state.get(src) %}
+    {% set _ = ready_sections.append((key, label, src)) %}
+  {% endif %}
+{% endfor %}
+
+{% if ready_sections %}
+<div class="tabs">
+  <div class="tab-strip" role="tablist">
+    {% for key, label, _src in ready_sections %}
+      <button type="button"
+              role="tab"
+              id="tab-btn-{{ key }}"
+              hx-preserve="true"
+              data-tab-key="{{ key }}"
+              class="tab-btn{% if loop.first %} active{% endif %}"
+              onclick="taShowTab(this, 'tab-{{ key }}')">
+        {{ label }}
+      </button>
+    {% endfor %}
+    {% if job.status == "done" %}
+      <button type="button" role="tab"
+              id="tab-btn-export"
+              hx-preserve="true"
+              data-tab-key="export"
+              class="tab-btn"
+              onclick="taShowTab(this, 'tab-export')">
+        Export
+      </button>
+    {% endif %}
+  </div>
+
+  {% for key, label, src in ready_sections %}
+    <section id="tab-{{ key }}"
+             hx-preserve="true"
+             class="tab-panel{% if loop.first %} active{% endif %}"
+             role="tabpanel">
+      <h2>{{ label }}</h2>
+      <div class="markdown">{{ job.partial_state[src] | markdown | safe }}</div>
+    </section>
+  {% endfor %}
+
+  {% if job.status == "done" %}
+    <section id="tab-export"
+             hx-preserve="true"
+             class="tab-panel"
+             role="tabpanel">
+      <h2>Export</h2>
+
+      <p>
+        <strong>PDF</strong> — typeset report with cover page, decision banner,
+        analyst sections, debate transcripts, and the post-pipeline summary.
+        Suitable for sharing with a portfolio manager.
+      </p>
+      <p>
+        <a class="primary button"
+           href="/api/jobs/{{ job.id }}/export.pdf"
+           download="tradingagents_{{ job.selections.ticker }}_{{ job.selections.analysis_date }}.pdf">
+          Download {{ job.selections.ticker }}_{{ job.selections.analysis_date }}.pdf
+        </a>
+      </p>
+
+      <p style="margin-top: 1.5rem;">
+        <strong>JSON</strong> — full pipeline state (selection, decision, stats,
+        every report and debate history). Machine-readable; suitable for
+        downstream tooling.
+      </p>
+      <p>
+        <a class="primary button"
+           href="/api/jobs/{{ job.id }}/export.json"
+           download="tradingagents_{{ job.selections.ticker }}_{{ job.selections.analysis_date }}.json">
+          Download {{ job.selections.ticker }}_{{ job.selections.analysis_date }}.json
+        </a>
+      </p>
+    </section>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+// Tab-switcher. Re-defined on every poll (the fragment is swapped); the
+// active tab is mirrored to sessionStorage so the user's choice survives
+// the 2-second poll re-renders and new tabs appearing mid-run.
+(function () {
+  var jobId = "{{ job.id }}";
+  var storageKey = "ta_tab_" + jobId;
+
+  window.taShowTab = function (btn, panelId) {
+    btn.parentElement.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+    var panel = document.getElementById(panelId);
+    if (panel) panel.classList.add('active');
+    try { sessionStorage.setItem(storageKey, btn.dataset.tabKey); } catch (_) {}
+  };
+
+  // Restore active tab from sessionStorage if the saved tab still exists.
+  // Without this, every 2 s poll re-renders the tab strip and snaps back
+  // to the first tab — making the UI feel like it's fighting the user.
+  try {
+    var saved = sessionStorage.getItem(storageKey);
+    if (saved) {
+      var btn = document.querySelector('.tab-btn[data-tab-key="' + saved + '"]');
+      var panel = document.getElementById('tab-' + saved);
+      if (btn && panel) {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        panel.classList.add('active');
+      }
+    }
+  } catch (_) {}
+})();
+</script>
+
+{% if job.status in ("done", "error", "cancelled") %}
+<script>
+// Terminal state reached — strip the parent's polling trigger so we don't
+// keep refetching identical content. Active-tab is already in sessionStorage
+// so it survives even a manual reload.
+(function () {
+  var parent = document.getElementById('job-status');
+  if (parent && parent.getAttribute('hx-trigger')) {
+    parent.setAttribute('hx-trigger', 'none');
+    if (window.htmx) window.htmx.process(parent);
+  }
+})();
+</script>
+{% endif %}

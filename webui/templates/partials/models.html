@@ -1,0 +1,16 @@
+<div class="field">
+  <label for="quick_thinker">Quick-thinker model</label>
+  <select id="quick_thinker" name="quick_thinker">
+    {% for display, value in quick_models %}
+      <option value="{{ value }}"{% if selected_quick is defined and selected_quick == value %} selected{% endif %}>{{ display }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="field">
+  <label for="deep_thinker">Deep-thinker model</label>
+  <select id="deep_thinker" name="deep_thinker">
+    {% for display, value in deep_models %}
+      <option value="{{ value }}"{% if selected_deep is defined and selected_deep == value %} selected{% endif %}>{{ display }}</option>
+    {% endfor %}
+  </select>
+</div>

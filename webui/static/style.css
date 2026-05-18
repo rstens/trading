@@ -1,0 +1,276 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1f232c;
+  --border: #2a2f3a;
+  --text: #e3e6ea;
+  --muted: #8c93a0;
+  --accent: #4ea1ff;
+  --accent-2: #2b7ad6;
+  --ok: #2fb380;
+  --warn: #d39c2f;
+  --error: #e36868;
+  --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.brand { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+.tagline { color: var(--muted); font-size: 0.85rem; }
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+h1 { font-size: 1.4rem; margin: 0 0 1rem 0; }
+h2 { font-size: 1.1rem; margin: 0 0 0.75rem 0; }
+h3 { font-size: 1.0rem; margin: 0 0 0.5rem 0; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field.mt { margin-top: 0.75rem; }
+.field label, fieldset legend { color: var(--muted); font-size: 0.85rem; }
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  font: inherit;
+}
+textarea { font-family: var(--mono); resize: vertical; min-height: 6rem; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.status-paused { background: rgba(211, 156, 47, 0.18); border-color: var(--warn); color: var(--warn); }
+.status.status-paused { color: var(--warn); }
+.status.status-rate_limited { color: var(--warn); }
+
+fieldset { border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0 0 1rem 0; }
+.checkbox-row { display: flex; flex-wrap: wrap; gap: 0.75rem; padding: 0.25rem 0; }
+.checkbox { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+
+.actions { margin-top: 1rem; }
+button.primary, a.primary.button {
+  background: var(--accent-2);
+  color: white;
+  border: 0;
+  padding: 0.6rem 1.1rem;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-block;
+}
+button.primary:hover, a.primary.button:hover { background: var(--accent); text-decoration: none; }
+
+.banner {
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.banner-info { background: rgba(78, 161, 255, 0.12); border: 1px solid var(--accent-2); }
+.banner-error { background: rgba(227, 104, 104, 0.12); border: 1px solid var(--error); color: var(--error); }
+
+.company-name-display { font-size: 0.85rem; color: var(--muted); min-height: 1.1rem; padding-top: 0.2rem; }
+.company-name-display .company-name { color: var(--text); font-weight: 500; }
+
+.dim { color: var(--muted); }
+
+/* Collapsible panel sections — used by Recent jobs / History on the index. */
+.collapse > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+}
+.collapse > summary::-webkit-details-marker { display: none; }
+.collapse > summary::before {
+  content: "▸";
+  color: var(--muted);
+  font-size: 0.85rem;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+.collapse[open] > summary::before { transform: rotate(90deg); }
+.collapse > summary > h1,
+.collapse > summary > h2 { margin: 0; }
+/* Push trailing items (Batch link in Selection summary) to the right. */
+.collapse > summary > h1 { margin-right: auto; }
+.collapse > summary:hover > h1,
+.collapse > summary:hover > h2 { color: var(--accent); }
+.collapse > summary > a { font-size: 0.9rem; }
+
+/* Sortable table headers — used by Recent jobs / History on the index. */
+table.sortable thead th { cursor: pointer; user-select: none; }
+table.sortable thead th:hover { color: var(--accent); }
+table.sortable thead th.no-sort { cursor: default; }
+table.sortable thead th.no-sort:hover { color: inherit; }
+table.sortable thead th.sort-asc::after { content: " \25B2"; font-size: 0.75em; color: var(--accent); }
+table.sortable thead th.sort-desc::after { content: " \25BC"; font-size: 0.75em; color: var(--accent); }
+
+/* Job detail */
+.job-header { display: flex; align-items: baseline; justify-content: space-between; }
+.job-header h1 small { color: var(--muted); font-weight: 400; }
+.back { font-size: 0.9rem; }
+
+.status-block { margin-bottom: 1rem; }
+.status-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.status-running { background: rgba(78, 161, 255, 0.18); border-color: var(--accent-2); color: var(--accent); }
+.status-done    { background: rgba(47, 179, 128, 0.18); border-color: var(--ok); color: var(--ok); }
+.status-error   { background: rgba(227, 104, 104, 0.18); border-color: var(--error); color: var(--error); }
+.status-cancelled { background: rgba(211, 156, 47, 0.18); border-color: var(--warn); color: var(--warn); }
+.status-queued  { background: var(--panel-2); }
+
+.stop-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.stop-btn:hover:not(:disabled) { background: rgba(227, 104, 104, 0.12); }
+.stop-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.progress {
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition: width 0.4s ease-out;
+}
+
+.agents-detail { margin-top: 0.75rem; font-size: 0.85rem; }
+.agents-detail ul { margin: 0.3rem 0 0 1.25rem; padding: 0; }
+
+.error-block pre {
+  background: #1a0d0d;
+  border: 1px solid var(--error);
+  padding: 0.75rem;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+/* Tabs */
+.tabs { margin-top: 1.5rem; }
+.tab-strip {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+.tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  color: var(--muted);
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font: inherit;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--text);
+  background: var(--panel-2);
+  border-color: var(--border);
+  border-bottom-color: var(--panel-2);
+  margin-bottom: -1px;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Markdown content */
+.markdown { background: var(--panel-2); padding: 1rem 1.25rem; border-radius: 6px; border: 1px solid var(--border); }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin-top: 1.2em; }
+.markdown h1:first-child, .markdown h2:first-child { margin-top: 0; }
+.markdown pre {
+  background: #0b0d12;
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+.markdown code { font-family: var(--mono); font-size: 0.9em; background: #0b0d12; padding: 0.1em 0.3em; border-radius: 3px; }
+.markdown pre code { background: transparent; padding: 0; }
+.markdown table { border-collapse: collapse; margin: 0.5rem 0; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 0.35rem 0.6rem; }
+.markdown th { background: var(--panel); }
+
+/* Jobs table */
+.jobs-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.jobs-table th, .jobs-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+.jobs-table th { color: var(--muted); font-weight: 600; }
+.status.status-done { color: var(--ok); }
+.status.status-running { color: var(--accent); }
+.status.status-error { color: var(--error); }
+.status.status-cancelled { color: var(--warn); }
+.status.status-queued { color: var(--muted); }

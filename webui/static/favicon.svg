@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="TradingAgents">
+  <!-- Dark rounded backdrop matches the app's --panel color (style.css). -->
+  <rect width="32" height="32" rx="6" fill="#171a21"/>
+
+  <!-- Faint baseline grid for chart context, kept low-contrast so it
+       doesn't muddy the icon at 16px. -->
+  <line x1="4" y1="24" x2="28" y2="24" stroke="#2a2f3a" stroke-width="1"/>
+  <line x1="4" y1="16" x2="28" y2="16" stroke="#2a2f3a" stroke-width="1"/>
+
+  <!-- Trending-up sparkline in the app's accent blue (#4ea1ff). -->
+  <polyline points="4,22 10,18 14,20 18,12 24,14 28,7"
+            fill="none" stroke="#4ea1ff" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Bullish close marker (success green) at the top-right tip. -->
+  <circle cx="28" cy="7" r="2.6" fill="#2fb380"/>
+</svg>
