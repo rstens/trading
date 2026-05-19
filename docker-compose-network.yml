@@ -1,0 +1,89 @@
+# TradingAgents — external/network PostgreSQL variant.
+#
+# Use this when your Postgres + pgvector lives on a separate host
+# (here: 10.0.0.218:5432). The bundled `postgres` service is omitted
+# entirely; the DB is treated as pre-provisioned infrastructure.
+#
+# Usage:
+#   docker compose -f docker-compose-network.yml up -d
+#   docker compose -f docker-compose-network.yml --profile cli run --rm cli analyze
+#   docker compose -f docker-compose-network.yml down
+#
+# Prerequisites on 10.0.0.218:
+#   1. PostgreSQL >= 18
+#   2. pgvector extension installed in the cluster
+#   3. Database `tradingagents` exists, owned by role `postgres`
+#   4. `CREATE EXTENSION vector;` has been run inside that database
+#   5. pg_hba.conf allows the Docker host's IP to connect as `postgres`
+#
+# First-time setup: copy .env.example to .env and fill in at least one
+# provider API key. Do NOT set TRADINGAGENTS_DATABASE_URL in .env — it's
+# hard-coded below for this compose file.
+
+services:
+  # ----- One-shot migrator -----
+  # Applies Alembic migrations against the remote DB, then exits.
+  # `web` depends on this completing successfully.
+  migrate:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRADINGAGENTS_DATABASE_URL: postgresql+psycopg://postgres:postgres@10.0.0.218:5432/tradingagents
+    entrypoint: ["python", "-m", "tradingagents.persistence", "upgrade"]
+    restart: "no"
+
+  # ----- Web UI (default `up` target) -----
+  web:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRADINGAGENTS_DATABASE_URL: postgresql+psycopg://postgres:postgres@10.0.0.218:5432/tradingagents
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    ports:
+      - "${TRADINGAGENTS_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["serve", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/favicon.ico', timeout=2).status"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  # ----- Interactive CLI (opt-in profile) -----
+  cli:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TRADINGAGENTS_DATABASE_URL: postgresql+psycopg://postgres:postgres@10.0.0.218:5432/tradingagents
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    tty: true
+    stdin_open: true
+    profiles:
+      - cli
+
+  # ----- Optional local LLM backend -----
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    profiles:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  tradingagents_data:
+  ollama_data:
