@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Changed
+
+- **UUIDv7 primary keys** for `runs` and `batches`. The Python-side
+  `default` for both PK columns is now `tradingagents.persistence.uuid7.uuid7`
+  (RFC 9562) instead of `uuid.uuid4`, so newly-inserted rows are
+  time-ordered and append to the B-tree index without page splits.
+  The column type (`UUID`) is unchanged — no migration needed; existing
+  v4 rows coexist with new v7 rows. The helper prefers stdlib
+  `uuid.uuid7` (Python 3.14+), falls back to `uuid_utils.uuid7` (already
+  transitive via langchain-core), then a native implementation.
+
 ## [0.3.0] — 2026-05-17
 
 ### Added

@@ -15,7 +15,8 @@
       "PowerShell(docker compose *)",
       "PowerShell(& .\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/test_pdf_export.py -v --no-header 2>&1 | Select-Object -Last 12)",
       "Bash(docker compose *)",
-      "Bash(docker run *)"
+      "Bash(docker run *)",
+      "Bash(git *)"
     ]
   }
 }

@@ -382,6 +382,12 @@ automatically when the env var resolves.
 | `batches` | Batch submissions with their per-ticker progress (JSONB array under a row lock for safe concurrent updates). |
 | `webui_settings` | The web UI's "last submitted selections" — replaces `webui_last_settings.json` when DB is on. |
 
+Primary keys on `runs` and `batches` are **UUIDv7** (RFC 9562) — embedded
+millisecond timestamps make new IDs sort-monotonic, so the PK B-tree
+stays append-only under high insert load. Existing v4 rows from earlier
+deployments coexist with new v7 rows without a migration; the column
+type (`UUID`) is unchanged.
+
 **Setup (Docker — default):**
 
 ```bash

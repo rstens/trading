@@ -114,6 +114,7 @@ The persistence package at `tradingagents/persistence/` adds a SQLAlchemy 2.x OR
 | `batches.py` | Batches DAO (Phase 6): `update_batch_ticker` uses `SELECT FOR UPDATE` on the row before mutating its JSONB tickers array — safe under the dispatcher's `BATCH_MAX_PARALLEL=3` concurrency. `interrupt_in_flight_batches` runs on `BatchRegistry.__init__` for restart recovery. |
 | `settings.py` | Singleton row DAO (Phase 7): `load_settings_db`, `save_settings_db`. The `CHECK(id=1)` constraint enforces the single-row invariant at the DB level. |
 | `migrations/versions/` | Alembic migrations: `0001_initial.py` (all 7 tables + pgvector extension + HNSW index) + `0002_runs_company_name.py`. Driven by `python -m tradingagents.persistence upgrade`. |
+| `uuid7.py` | `uuid7()` helper (RFC 9562) used as the Python-side `default` for `runs.id` and `batches.id` — time-ordered UUIDs keep PK B-tree inserts append-only. Resolution order: stdlib `uuid.uuid7` (3.14+) → `uuid_utils.uuid7` (transitive via langchain-core) → native fallback. Returns a stdlib `uuid.UUID`. |
 
 **DB-off fallback contract** (the single most important property of the package):
 
