@@ -36,6 +36,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.persistence.uuid7 import uuid7
 
 
 # Deployment-level pgvector dim. Read once at import time; changing the
@@ -54,7 +55,7 @@ class Batch(Base):
     __tablename__ = "batches"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True), primary_key=True, default=uuid7,
     )
     # queued | running | paused | done | cancelled
     status: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -88,7 +89,7 @@ class Run(Base):
     __tablename__ = "runs"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True), primary_key=True, default=uuid7,
     )
     ticker: Mapped[str] = mapped_column(String, nullable=False, index=True)
     analysis_date: Mapped[datetime.date] = mapped_column(Date, nullable=False, index=True)
