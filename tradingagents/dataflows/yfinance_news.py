@@ -7,6 +7,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
+from .news_queries import queries_for_ticker
 from .stockstats_utils import yf_retry
 
 
@@ -112,9 +113,15 @@ def get_global_news_yfinance(
     curr_date: str,
     look_back_days: Optional[int] = None,
     limit: Optional[int] = None,
+    ticker: Optional[str] = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
+
+    Queries are consulted in priority order, taking up to
+    ``global_news_articles_per_query`` fresh articles from each until
+    ``limit`` is reached — so several queries contribute instead of the
+    first one filling the whole quota.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format
@@ -122,6 +129,9 @@ def get_global_news_yfinance(
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles to return. ``None`` falls back to
             ``global_news_article_limit`` from the active config.
+        ticker: Instrument being analyzed; routes Canadian listings
+            (``.TO`` / ``.V``) to the Canada-focused query set. ``None``
+            uses the default macro set.
 
     Returns:
         Formatted string containing global news articles
@@ -131,35 +141,40 @@ def get_global_news_yfinance(
         look_back_days = config["global_news_lookback_days"]
     if limit is None:
         limit = config["global_news_article_limit"]
-    search_queries = config["global_news_queries"]
+    per_query = config.get("global_news_articles_per_query", 2)
+    search_queries = queries_for_ticker(ticker, config)
 
     all_news = []
     seen_titles = set()
 
     try:
         for query in search_queries:
+            if len(all_news) >= limit:
+                break
+
             search = yf_retry(lambda q=query: yf.Search(
                 query=q,
-                news_count=limit,
+                news_count=per_query + 2,  # headroom for cross-query duplicates
                 enable_fuzzy_query=True,
             ))
 
-            if search.news:
-                for article in search.news:
-                    # Handle both flat and nested structures
-                    if "content" in article:
-                        data = _extract_article_data(article)
-                        title = data["title"]
-                    else:
-                        title = article.get("title", "")
+            taken = 0
+            for article in (search.news or []):
+                if taken >= per_query or len(all_news) >= limit:
+                    break
 
-                    # Deduplicate by title
-                    if title and title not in seen_titles:
-                        seen_titles.add(title)
-                        all_news.append(article)
+                # Handle both flat and nested structures
+                if "content" in article:
+                    data = _extract_article_data(article)
+                    title = data["title"]
+                else:
+                    title = article.get("title", "")
 
-            if len(all_news) >= limit:
-                break
+                # Deduplicate by title
+                if title and title not in seen_titles:
+                    seen_titles.add(title)
+                    all_news.append(article)
+                    taken += 1
 
         if not all_news:
             return f"No global news found for {curr_date}"

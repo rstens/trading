@@ -23,7 +23,7 @@ def create_news_analyst(llm):
             "Process (follow in order):\n"
             "1. Call `get_news(query, start_date, end_date)` for the target ticker over the past 7 days. Always search before writing — do not report from training knowledge.\n"
             "2. Call `get_news` again for the sector or key suppliers/customers when the first results point at an industry-level story.\n"
-            "3. Call `get_global_news(curr_date, look_back_days, limit)` for macroeconomic news (rates, inflation, geopolitics) that could plausibly move this instrument.\n\n"
+            "3. Call `get_global_news(curr_date, look_back_days, limit, ticker)` for macroeconomic news (rates, inflation, geopolitics) that could plausibly move this instrument — always pass the target ticker so the macro feed covers the right region (Canadian topics for Canadian listings).\n\n"
             "Report guidelines:\n"
             "- Prioritize company-specific news first, then sector, then macro. Include macro items only when they plausibly move this instrument.\n"
             "- Date-stamp each item and weight recent items more heavily.\n"

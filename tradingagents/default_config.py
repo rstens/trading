@@ -93,14 +93,70 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 10,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
-    # Search queries used by get_global_news for macro headlines. Extend or
-    # replace to broaden geographic / sector coverage.
+    # Articles fetched per search query. Queries are consulted top to
+    # bottom, taking up to this many fresh articles each, until
+    # global_news_article_limit is reached — so order the query lists by
+    # priority. (Before this knob existed the first query alone filled the
+    # whole limit and the rest of the list never ran.)
+    "global_news_articles_per_query": 2,
+    # Default macro queries used by get_global_news for most tickers.
+    # Extend or replace to broaden geographic / sector coverage.
     "global_news_queries": [
         "Federal Reserve interest rates inflation",
         "S&P 500 earnings GDP economic outlook",
         "geopolitical risk trade war sanctions",
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
+    ],
+    # Canada-focused queries, used instead of the default set when the
+    # analyzed ticker is a Canadian listing (.TO / .V). Ordered by priority.
+    "global_news_queries_canada": [
+        "Bank of Canada interest rate decision overnight rate",
+        "Canada GDP growth Statistics Canada economic outlook",
+        "Canada CPI inflation consumer price index",
+        "Statistics Canada Labour Force Survey unemployment rate",
+        "Canadian dollar loonie USD exchange rate forecast",
+        "Canada retail sales consumer spending data",
+        "Canada trade balance exports imports surplus deficit",
+        "Canada economy recession risk growth forecast",
+        "RBC TD BMO Scotiabank CIBC bank earnings",
+        "OSFI bank capital requirements mortgage stress test",
+        "TSX S&P composite Canadian stock market",
+        "Canadian banks loan loss provisions credit quality",
+        "Alberta oil sands crude production WCS price",
+        "Canada LNG natural gas export terminal",
+        "Trans Mountain Enbridge pipeline capacity oil",
+        "Canada mining gold copper critical minerals",
+        "Canada potash uranium commodity prices",
+        "Canada softwood lumber forestry exports duties",
+        "US Canada tariffs trade dispute escalation",
+        "Trump tariffs Canadian steel aluminum autos",
+        "CUSMA USMCA review renegotiation trade agreement",
+        "Canada retaliatory tariffs countermeasures US",
+        "Canada defense spending NATO two percent target",
+        "Canadian military procurement F-35 fighter jets",
+        "Canada naval shipbuilding surface combatant program",
+        "NORAD modernization Arctic security Canada",
+        "Canadian defense industry contracts suppliers",
+        "Canada federal budget Parliament fiscal policy",
+        "Canada federal government policy Prime Minister",
+        "Canada provincial politics Alberta Ontario Quebec",
+        "Canada immigration levels targets policy",
+        "Canada federal deficit government spending debt",
+        "Canada housing market home prices CMHC",
+        "Canadian mortgage rates housing affordability",
+        "Toronto Vancouver real estate housing starts",
+        "Canada housing supply construction starts permits",
+        "Canada job market hiring layoffs employment",
+        "Canada wage growth labour shortage vacancies",
+        "Canadian companies mergers acquisitions deals",
+        "Canada foreign investment partnership agreement",
+        "Canada EU CETA Indo-Pacific trade diversification",
+        "Canada US cross-border business investment",
+        "Canadian corporate earnings TSX listed companies",
+        "Canada auto industry manufacturing Ontario",
+        "Canada technology sector AI startups funding",
+        "Canada agriculture agri-food exports sector",
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
@@ -113,6 +169,21 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Macro headlines come from newsdata.io (proper query/country/
+        # category filtering — much better relevance than yfinance's fuzzy
+        # Search). Requires NEWSDATA_API_KEY in .env; when the key is
+        # missing the implementation falls back to yfinance automatically.
+        "get_global_news": "newsdata",
+    },
+    # Request filters for the newsdata.io vendor (get_global_news, served
+    # by the market-news endpoint /api/1/market — already finance-scoped,
+    # so there is no category filter). `country` applies to the default
+    # macro set; `country_canada` when the analyzed ticker is a Canadian
+    # listing (.TO / .V).
+    "newsdata_params": {
+        "language": "en",
+        "country": "us,gb",
+        "country_canada": "ca,us",
     },
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all

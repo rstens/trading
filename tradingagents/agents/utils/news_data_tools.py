@@ -25,22 +25,26 @@ def get_global_news(
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
     look_back_days: Annotated[Optional[int], "Days to look back; omit to use the configured default"] = None,
     limit: Annotated[Optional[int], "Max articles to return; omit to use the configured default"] = None,
+    ticker: Annotated[Optional[str], "Ticker of the instrument being analyzed — always pass it so the macro feed covers the right region (Canadian topics for .TO/.V listings, global macro otherwise)"] = None,
 ) -> str:
     """
-    Retrieve global news data.
+    Retrieve global/macro news data.
     Uses the configured news_data vendor. Defaults for look_back_days and
     limit come from DEFAULT_CONFIG (global_news_lookback_days,
     global_news_article_limit); pass explicit values to override.
+    Always pass the target ticker: Canadian listings (.TO / .V) get
+    Canada-focused macro coverage, everything else the default global set.
 
     Args:
         curr_date (str): Current date in yyyy-mm-dd format
         look_back_days (int): Number of days to look back; omit to inherit config
         limit (int): Maximum number of articles to return; omit to inherit config
+        ticker (str): Ticker of the instrument being analyzed (routes regional coverage)
 
     Returns:
         str: A formatted string containing global news data
     """
-    return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    return route_to_vendor("get_global_news", curr_date, look_back_days, limit, ticker)
 
 @tool
 def get_insider_transactions(

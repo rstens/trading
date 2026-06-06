@@ -32,8 +32,35 @@ Breaking changes within the 0.x line are called out explicitly.
   scheduled runs of the same watchlist no longer flood the table with
   near-identical rows.
 
+### Added
+
+- **newsdata.io as a news vendor** (`get_global_news` only, via the
+  official `newsdataapi` client and the finance-scoped `/api/1/market`
+  endpoint — note it rejects the `category` parameter). Now the default
+  vendor for macro headlines (`tool_vendors: {"get_global_news":
+  "newsdata"}`): proper query/country/language filtering gives far
+  better relevance than yfinance's fuzzy Search. Requires
+  `NEWSDATA_API_KEY` in `.env`; when the key is missing the
+  implementation logs a warning and falls back to yfinance
+  automatically. Request filters live in `newsdata_params`
+  (`country: us,gb` default, `country_canada: ca,us` for Canadian
+  listings). Rate-limit handling: low retry counts (the client handles
+  Retry-After/backoff), and a 429 stops the remaining queries instead
+  of stalling the analyst tool call.
+
 ### Changed
 
+- **Global news is ticker-aware and actually consults the query list.**
+  `get_global_news` now takes the analyzed ticker: Canadian listings
+  (`.TO` / `.V`) use the new Canada-focused
+  `global_news_queries_canada` set, everything else the default macro
+  set. The fetch loop takes up to `global_news_articles_per_query`
+  (default 2) fresh articles per query in priority order until
+  `global_news_article_limit` — previously the first query filled the
+  entire quota and the other ~50 configured queries never executed.
+  Shared routing logic lives in `dataflows/news_queries.py`. Also fixed
+  a latent crash in the Alpha Vantage global-news path when the tool's
+  `None` defaults reached `timedelta(days=None)`.
 - **Agent prompts overhauled for modern LLM guidance** (all roles, format
   contracts unchanged). Removed the vestigial multi-assistant "swarm"
   scaffold from the five analysts — single coherent role statement, and

@@ -22,20 +22,30 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_global_news(curr_date, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
+def get_global_news(curr_date, look_back_days: int | None = 7, limit: int | None = 50, ticker: str | None = None) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format.
-        look_back_days: Number of days to look back (default 7).
-        limit: Maximum number of articles (default 50).
+        look_back_days: Number of days to look back (default 7; None uses 7).
+        limit: Maximum number of articles (default 50; None uses 50).
+        ticker: Accepted for vendor-signature compatibility with the
+            yfinance implementation (which routes Canadian listings to a
+            Canada-focused query set). Alpha Vantage's topic filter has no
+            per-region granularity, so it is ignored here.
 
     Returns:
         Dictionary containing global news sentiment data or JSON string.
     """
     from datetime import datetime, timedelta
+
+    # The abstract tool passes None to mean "use the vendor default".
+    if look_back_days is None:
+        look_back_days = 7
+    if limit is None:
+        limit = 50
 
     # Calculate start date
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
