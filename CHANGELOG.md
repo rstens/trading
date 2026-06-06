@@ -34,6 +34,36 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Changed
 
+- **Agent prompts overhauled for modern LLM guidance** (all roles, format
+  contracts unchanged). Removed the vestigial multi-assistant "swarm"
+  scaffold from the five analysts — single coherent role statement, and
+  analysts are now explicitly told *not* to emit a buy/sell/hold call
+  (that decision belongs downstream; the rendered
+  `FINAL TRANSACTION PROPOSAL` line from the Trader's structured output
+  is unchanged). All injected reports, debate histories, and plans are
+  wrapped in XML tags with a data-not-instructions guard wherever
+  external text (news, social posts) enters a prompt. Analysts gained
+  explicit tool-calling processes and when-to-call triggers plus
+  concrete report specs (incl. invalidation conditions) in place of
+  "very detailed and nuanced". Debaters (bull/bear + the three risk
+  analysts) gained debate rules: steelman the strongest opposing point
+  first, no cross-round repetition, every claim cites a figure from the
+  reports, hold the assigned stance with narrow honest concessions;
+  finder roles (bear, conservative) carry an explicit coverage mandate
+  while the judges (Research Manager, Portfolio Manager) gained a
+  judging rubric — weigh evidence over eloquence/recency, filter
+  low-confidence points — and must state invalidation/revisit triggers.
+  The Trader is re-anchored as an execution role (direction, conviction,
+  entry, sizing, stop, horizon — no re-litigating research), the Neutral
+  risk analyst has a distinct job (quantify risk/reward asymmetry,
+  propose the sizing/hedging middle path), and the Reflector gained a
+  luck-vs-skill guard so noisy short-window alpha doesn't write spurious
+  lessons into the decision log.
+- **Fundamentals analyst fixes**: the system prompt was accidentally a
+  1-tuple (trailing comma) and rendered as a Python `repr` — now a plain
+  string; `get_insider_transactions` is now actually bound to the
+  fundamentals analyst (tool list + ToolNode) and referenced in its
+  prompt.
 - **UUIDv7 primary keys** for `runs` and `batches`. The Python-side
   `default` for both PK columns is now `tradingagents.persistence.uuid7.uuid7`
   (RFC 9562) instead of `uuid.uuid4`, so newly-inserted rows are

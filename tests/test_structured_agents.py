@@ -143,9 +143,11 @@ class TestTraderAgent:
         llm = _structured_trader_llm(captured)
         trader = create_trader(llm)
         trader(_make_trader_state())
-        # The investment plan is in the user message of the captured prompt.
+        # The investment plan is in the user message of the captured prompt,
+        # wrapped in <investment_plan> tags.
         prompt = captured["prompt"]
-        assert any("Proposed Investment Plan" in m["content"] for m in prompt)
+        assert any("**Recommendation**: Buy" in m["content"] for m in prompt)
+        assert any("<investment_plan>" in m["content"] for m in prompt)
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (

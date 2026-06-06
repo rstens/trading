@@ -29,21 +29,23 @@ def create_trader(llm):
             {
                 "role": "system",
                 "content": (
-                    "You are a trading agent analyzing market data to make investment decisions. "
-                    "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
+                    "You are the execution trader on a multi-agent research team. "
+                    "The Research Manager's investment plan is your mandate — do not "
+                    "re-litigate the research; your value-add is execution parameters "
+                    "and risk controls. Anchor every parameter in the plan's reasoning."
                     + get_language_instruction()
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    f"Based on a comprehensive analysis by a team of analysts, here is an investment "
-                    f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
-                    f"insights from current technical market trends, macroeconomic indicators, and "
-                    f"social media sentiment. Use this plan as a foundation for evaluating your next "
-                    f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
-                    f"Leverage these insights to make an informed and strategic decision."
+                    f"Here is the investment plan for {company_name}, produced by the "
+                    f"research team from technical, fundamental, news, and sentiment "
+                    f"analysis. {instrument_context}\n\n"
+                    f"<investment_plan>\n{investment_plan}\n</investment_plan>\n\n"
+                    f"Translate this plan into a concrete transaction proposal: direction, "
+                    f"conviction level, entry approach (immediate vs. staged), "
+                    f"position-sizing rationale, stop/invalidation level, and time horizon."
                 ),
             },
         ]

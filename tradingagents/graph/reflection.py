@@ -24,6 +24,9 @@ class Reflector:
             "1. Was the directional call correct? (cite the alpha figure)\n"
             "2. Which part of the investment thesis held or failed?\n"
             "3. One concrete lesson to apply to the next similar analysis.\n\n"
+            "If the outcome plausibly reflects market noise rather than thesis quality "
+            "(small alpha, no clear causal link to the thesis), say so explicitly instead "
+            "of forcing a lesson — a wrong lesson is worse than none.\n\n"
             "Be specific and terse. Your output will be stored verbatim in a decision log "
             "and re-read by future analysts, so every word must earn its place."
         )

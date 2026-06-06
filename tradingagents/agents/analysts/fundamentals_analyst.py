@@ -21,26 +21,35 @@ def create_fundamentals_analyst(llm):
             get_balance_sheet,
             get_cashflow,
             get_income_statement,
+            get_insider_transactions,
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            "You are a fundamentals analyst examining the company's latest reported financials and any changes since the prior period.\n\n"
+            "Tool usage:\n"
+            "- Call `get_fundamentals` first for the comprehensive company overview — always retrieve it before writing.\n"
+            "- Call `get_balance_sheet`, `get_cashflow`, or `get_income_statement` when a specific question (leverage, cash burn, margin trend) needs line-item evidence.\n"
+            "- Call `get_insider_transactions` to check whether insiders are buying or selling.\n\n"
+            "Report contents — analyze through these lenses:\n"
+            "- Profitability: revenue growth, margin trends, earnings trajectory\n"
+            "- Balance-sheet strength: leverage, liquidity, debt pressure\n"
+            "- Cash generation: free cash flow vs. reported earnings (earnings quality)\n"
+            "- Valuation: current multiples vs. the company's own history\n"
+            "- Red flags: anything in the statements or insider activity a portfolio manager should know before sizing a position\n\n"
+            "Ground every observation in specific figures from the retrieved statements."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
-            + get_language_instruction(),
+            + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    "You are one analyst on a multi-agent trading research team. Your report"
+                    " will be read by bull/bear researchers and a portfolio manager downstream."
+                    " Produce your analyst report only — do not recommend buy, sell, or hold;"
+                    " that decision belongs to agents downstream."
+                    " You have access to the following tools: {tool_names}.\n{system_message}\n"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),

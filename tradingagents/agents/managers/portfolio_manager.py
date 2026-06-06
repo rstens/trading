@@ -34,7 +34,7 @@ def create_portfolio_manager(llm):
 
         past_context = state.get("past_context", "")
         lessons_line = (
-            f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
+            f"- Lessons from prior decisions and outcomes:\n<past_lessons>\n{past_context}\n</past_lessons>\n"
             if past_context
             else ""
         )
@@ -42,6 +42,12 @@ def create_portfolio_manager(llm):
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
+
+---
+
+**How to judge the debate:**
+- Weigh the quality of evidence and reasoning — not eloquence, repetition, confidence of tone, or who spoke last.
+- The risk analysts were instructed to surface every concern, including low-confidence ones. Your job is to weigh and discard — do not give every raised risk equal weight.
 
 ---
 
@@ -53,15 +59,23 @@ def create_portfolio_manager(llm):
 - **Sell**: Exit position or avoid entry
 
 **Context:**
-- Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
+- Research Manager's investment plan:
+<research_plan>
+{research_plan}
+</research_plan>
+- Trader's transaction proposal:
+<trader_proposal>
+{trader_plan}
+</trader_proposal>
 {lessons_line}
 **Risk Analysts Debate History:**
+<risk_debate>
 {history}
+</risk_debate>
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts. In your reasoning, state the conditions under which this decision should be revisited — specific price levels, events, or data that would change the call.{get_language_instruction()}"""
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,

@@ -28,6 +28,13 @@ def create_research_manager(llm):
 
 ---
 
+**How to judge the debate:**
+- Weigh the quality of evidence and reasoning — not eloquence, repetition, confidence of tone, or who spoke last.
+- Identify the strongest bull point and the strongest bear point, then decide which thesis survives the other's best attack.
+- The debaters were instructed to surface every concern, including low-confidence ones. Weigh and discard accordingly — do not give every raised point equal weight.
+
+---
+
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
 - **Overweight**: Constructive view; recommend gradually increasing exposure
@@ -37,10 +44,14 @@ def create_research_manager(llm):
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
 
+In your plan, state explicitly what evidence or events would invalidate the chosen rating, so the trader has concrete triggers to watch.
+
 ---
 
 **Debate History:**
-{history}""" + get_language_instruction()
+<debate_history>
+{history}
+</debate_history>""" + get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,

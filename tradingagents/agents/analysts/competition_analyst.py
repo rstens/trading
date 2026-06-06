@@ -37,11 +37,11 @@ def create_competition_analyst(llm):
             "Process:\n"
             "  1. Use your training knowledge to enumerate likely competitors "
             "(public companies whenever possible — name and ticker).\n"
-            "  2. For the most relevant competitors, you MAY call `get_news` "
-            "against their ticker symbols to confirm or surface very recent moves "
-            "(earnings, products, regulatory actions, leadership changes). Do not "
-            "call `get_news` for every competitor — only when freshness materially "
-            "changes the ranking or the takeaway.\n"
+            "  2. Call `get_news` against the ticker symbols of the top 2-3 "
+            "ranked competitors to confirm or surface very recent moves "
+            "(earnings, products, regulatory actions, leadership changes); "
+            "skip it for the tail of the list unless freshness would "
+            "materially change the ranking or the takeaway.\n"
             "  3. Limit the list to the 4-6 most relevant competitors. Quality and "
             "ranking matter more than coverage.\n\n"
             "Output a single markdown report with the following structure:\n\n"
@@ -66,13 +66,11 @@ def create_competition_analyst(llm):
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    "You are one analyst on a multi-agent trading research team. Your report"
+                    " will be read by bull/bear researchers and a portfolio manager downstream."
+                    " Produce your analyst report only — do not recommend buy, sell, or hold;"
+                    " that decision belongs to agents downstream."
+                    " You have access to the following tools: {tool_names}.\n{system_message}\n"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
