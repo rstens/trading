@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}TradingAgents — Scheduled analyses{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="job-header">
+    <h1>Scheduled analyses</h1>
+    <a href="/" class="back">&larr; Single-ticker form</a>
+  </div>
+
+  <p class="dim">
+    Run a ticker list on a recurring cadence without sitting at the keyboard.
+    Each fire submits a normal batch (3 tickers in parallel, rate-limit pause,
+    every run lands in Recent jobs / History) using the fire date as the
+    analysis date. Schedules fire while this server is running; a run that
+    was due during downtime is caught up once at startup.
+  </p>
+
+  <form id="schedule-form"
+        hx-post="/api/schedules"
+        hx-target="#form-errors"
+        hx-swap="innerHTML">
+
+    <div id="form-errors"></div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="name">Name <span class="dim">(optional — defaults to the ticker list)</span></label>
+        <input type="text" id="name" name="name" maxlength="80"
+               placeholder="e.g. Morning watchlist">
+      </div>
+      <div class="field">
+        <label for="cadence">Cadence</label>
+        <select id="cadence" name="cadence"
+                onchange="document.getElementById('weekday-field').style.display = this.value === 'weekly' ? '' : 'none'">
+          <option value="daily">Daily</option>
+          <option value="weekdays" selected>Weekdays (Mon–Fri)</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="time_of_day">Time of day <span class="dim">(server-local)</span></label>
+        <input type="time" id="time_of_day" name="time_of_day" value="07:00" required>
+      </div>
+      <div class="field" id="weekday-field" style="display: none;">
+        <label for="weekday">Day of week</label>
+        <select id="weekday" name="weekday">
+          {% for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] %}
+            <option value="{{ loop.index0 }}">{{ day }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="tickers">Tickers</label>
+      <textarea id="tickers" name="tickers" rows="4" required
+                placeholder="NVDA&#10;AAPL&#10;MSFT"></textarea>
+      <p class="dim" style="margin: 0.3rem 0 0; font-size: 0.8rem;">
+        One per line, or comma- / semicolon-separated. Duplicates are dropped.
+      </p>
+    </div>
+
+    <fieldset class="field">
+      <legend>Analysts</legend>
+      <div class="checkbox-row">
+        {% for key, label in analysts %}
+          <label class="checkbox">
+            <input type="checkbox" name="analysts" value="{{ key }}"
+                   {% if key in defaults.analysts %}checked{% endif %}>
+            <span>{{ "Sentiment" if key == "social" else label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="llm_provider">LLM provider</label>
+        <select id="llm_provider" name="llm_provider"
+                hx-get="/htmx/models"
+                hx-trigger="change"
+                hx-target="#model-selects"
+                hx-include="[name='llm_provider']">
+          {% for display, key, _url in providers %}
+            <option value="{{ key }}" {% if key == defaults.llm_provider %}selected{% endif %}>
+              {{ display }}
+            </option>
+          {% endfor %}
+        </select>
+        <div hx-get="/htmx/effort"
+             hx-trigger="change from:#llm_provider"
+             hx-include="[name='llm_provider']"
+             hx-swap="innerHTML"
+             id="effort-block">
+          {{ effort_html | safe }}
+        </div>
+      </div>
+      <div class="field">
+        <label for="research_depth">Research depth (debate rounds)</label>
+        <input type="number" id="research_depth" name="research_depth"
+               value="{{ defaults.research_depth }}" min="1" max="10">
+        <label for="output_language" class="mt">Output language</label>
+        <select id="output_language" name="output_language">
+          {% for lang in ["English","Chinese","Spanish","French","German","Japanese","Korean","Portuguese","Russian"] %}
+            <option value="{{ lang }}" {% if lang == defaults.output_language %}selected{% endif %}>{{ lang }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div id="model-selects" class="grid-2">
+      {% include "partials/models.html" %}
+    </div>
+
+    <div class="actions">
+      <label class="checkbox" style="margin-right: 1rem; vertical-align: middle;">
+        <input type="checkbox" name="force_refresh" value="true">
+        <span>Force re-run <span class="dim">(ignore cached results from the last 7 days)</span></span>
+      </label>
+      <button type="submit" class="primary">Create schedule</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Schedules</h2>
+  <div id="schedules-table"
+       hx-get="/htmx/schedules/table"
+       hx-trigger="every 30s"
+       hx-swap="morph:innerHTML">
+    {% include "partials/schedules_table.html" %}
+  </div>
+</section>
+{% endblock %}

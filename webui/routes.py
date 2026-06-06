@@ -31,6 +31,11 @@ from webui.batch import BatchRegistry, get_batch_registry
 from webui.cache import json_safe
 from webui.models import PROVIDERS, RunSelections
 from webui.preferences import load_last_settings, save_last_settings
+from webui.schedules import (
+    SCHEDULE_TICKER_SENTINEL,
+    ScheduleRegistry,
+    get_schedule_registry,
+)
 from webui.runner import (
     ALL_TAB_SECTIONS,
     JobRegistry,
@@ -126,6 +131,9 @@ def index(request: Request, registry: JobRegistry = Depends(get_registry)) -> Re
             # call funds both panels.
             "jobs": active + terminal_today[:_TERMINAL_TODAY_CAP],
             "history": older[:_HISTORY_CAP],
+            # Same rows, grouped one-line-per-ticker for the expandable
+            # History panel.
+            "history_groups": _group_history(older[:_HISTORY_CAP]),
             "no_keys_warning": no_keys_warning,
         },
     )
@@ -523,6 +531,206 @@ def cancel_batch(
 # ---------- end batch routes ----------
 
 
+# ---------- Schedule routes ----------
+
+@router.get("/schedules", response_class=HTMLResponse)
+def schedules_page(
+    request: Request,
+    sched_reg: ScheduleRegistry = Depends(get_schedule_registry),
+) -> Response:
+    """Schedule management page — creation form + table of existing
+    schedules. Same selection controls as the batch form, plus the
+    cadence / time-of-day / weekday knobs."""
+    saved = load_last_settings()
+    available = _available_providers()
+    available_keys = {k for _, k, _ in available}
+    default_provider = (
+        saved.get("llm_provider")
+        if saved.get("llm_provider") in available_keys
+        else (available[0][1] if available else DEFAULT_CONFIG["llm_provider"])
+    )
+    defaults = {
+        "llm_provider": default_provider,
+        "research_depth": saved.get("research_depth", DEFAULT_CONFIG["max_debate_rounds"]),
+        "output_language": saved.get("output_language", DEFAULT_CONFIG["output_language"]),
+        "analysts": saved.get("analysts", [a.value for a in AnalystType]),
+    }
+    selected_effort = (
+        saved.get("openai_reasoning_effort")
+        or saved.get("anthropic_effort")
+        or saved.get("google_thinking_level")
+        or ""
+    )
+    provider_models = _models_for_provider(default_provider)
+    return _templates(request).TemplateResponse(
+        request,
+        "schedules.html",
+        {
+            "providers": available,
+            "analysts": [(a.value, a.name.title()) for a in AnalystType],
+            "defaults": defaults,
+            "quick_models": provider_models["quick"],
+            "deep_models": provider_models["deep"],
+            "selected_quick": saved.get("quick_thinker"),
+            "selected_deep": saved.get("deep_thinker"),
+            "effort_html": _effort_html(request, default_provider, selected_effort),
+            "schedules": sched_reg.list_schedules(),
+        },
+    )
+
+
+@router.get("/htmx/schedules/table", response_class=HTMLResponse)
+def htmx_schedules_table(
+    request: Request,
+    sched_reg: ScheduleRegistry = Depends(get_schedule_registry),
+) -> Response:
+    """Polled fragment so Next/Last-run columns stay fresh."""
+    return _schedules_table(request, sched_reg)
+
+
+@router.post("/api/schedules", response_class=HTMLResponse)
+def create_schedule(
+    request: Request,
+    sched_reg: ScheduleRegistry = Depends(get_schedule_registry),
+    name: str = Form(""),
+    tickers: str = Form(...),
+    cadence: str = Form("daily"),
+    time_of_day: str = Form("07:00"),
+    weekday: int = Form(0),
+    analysts: Optional[list[str]] = Form(None),
+    llm_provider: str = Form(...),
+    quick_thinker: str = Form(...),
+    deep_thinker: str = Form(...),
+    research_depth: int = Form(1),
+    output_language: str = Form("English"),
+    openai_reasoning_effort: Optional[str] = Form(None),
+    anthropic_effort: Optional[str] = Form(None),
+    google_thinking_level: Optional[str] = Form(None),
+    force_refresh: bool = Form(False),
+) -> Response:
+    """Create a recurring schedule. Ticker parsing matches /api/batches."""
+    raw = (tickers or "").replace(",", "\n").replace(";", "\n")
+    ticker_list = [line.strip() for line in raw.splitlines() if line.strip()]
+    if not ticker_list:
+        return _templates(request).TemplateResponse(
+            request, "partials/error.html",
+            {"message": "Provide at least one ticker."},
+            status_code=400,
+        )
+
+    try:
+        base = RunSelections(
+            ticker=SCHEDULE_TICKER_SENTINEL,
+            # Placeholder — overridden with the fire date each run.
+            analysis_date=datetime.date.today().isoformat(),
+            analysts=analysts or [a.value for a in AnalystType],
+            llm_provider=llm_provider,
+            quick_thinker=quick_thinker,
+            deep_thinker=deep_thinker,
+            research_depth=research_depth,
+            output_language=output_language,
+            openai_reasoning_effort=openai_reasoning_effort or None,
+            anthropic_effort=anthropic_effort or None,
+            google_thinking_level=google_thinking_level or None,
+            force_refresh=bool(force_refresh),
+        )
+    except Exception as e:
+        return _templates(request).TemplateResponse(
+            request, "partials/error.html",
+            {"message": f"Invalid selections: {e}"}, status_code=400,
+        )
+
+    env_var = get_api_key_env(base.llm_provider)
+    if env_var and not os.environ.get(env_var):
+        return _templates(request).TemplateResponse(
+            request, "partials/error.html",
+            {"message": (
+                f"{env_var} is not set. Add it to .env and restart the server, "
+                "then resubmit."
+            )},
+            status_code=400,
+        )
+
+    try:
+        sched_reg.create(
+            name=name,
+            tickers=ticker_list,
+            cadence=cadence,
+            time_of_day=time_of_day,
+            weekday=weekday,
+            base_selections=base,
+        )
+    except Exception as e:  # noqa: BLE001 — pydantic validation errors land here
+        return _templates(request).TemplateResponse(
+            request, "partials/error.html",
+            {"message": f"Invalid schedule: {e}"}, status_code=400,
+        )
+
+    # Persist last selections (minus the sentinel ticker) like the
+    # batch form does, so the next form visit pre-fills.
+    try:
+        d = base.model_dump()
+        d.pop("ticker", None)
+        save_last_settings(d)
+    except Exception:  # noqa: BLE001
+        pass
+
+    return HTMLResponse("", headers={"HX-Redirect": "/schedules"})
+
+
+@router.post("/api/schedules/{schedule_id}/toggle", response_class=HTMLResponse)
+def toggle_schedule(
+    schedule_id: str,
+    request: Request,
+    sched_reg: ScheduleRegistry = Depends(get_schedule_registry),
+) -> Response:
+    schedule = sched_reg.get(schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Unknown schedule id")
+    sched_reg.set_enabled(schedule_id, not schedule.enabled)
+    return _schedules_table(request, sched_reg)
+
+
+@router.post("/api/schedules/{schedule_id}/delete", response_class=HTMLResponse)
+def delete_schedule(
+    schedule_id: str,
+    request: Request,
+    sched_reg: ScheduleRegistry = Depends(get_schedule_registry),
+) -> Response:
+    if not sched_reg.delete(schedule_id):
+        raise HTTPException(status_code=404, detail="Unknown schedule id")
+    return _schedules_table(request, sched_reg)
+
+
+@router.post("/api/schedules/{schedule_id}/run", response_class=HTMLResponse)
+def run_schedule_now(
+    schedule_id: str,
+    request: Request,
+    sched_reg: ScheduleRegistry = Depends(get_schedule_registry),
+) -> Response:
+    """Fire immediately (extra run, cadence unchanged). On success,
+    redirect to the new batch's detail page so the user can watch it."""
+    if sched_reg.get(schedule_id) is None:
+        raise HTTPException(status_code=404, detail="Unknown schedule id")
+    batch_id = sched_reg.run_now(schedule_id)
+    if batch_id is not None:
+        return HTMLResponse("", headers={"HX-Redirect": f"/batches/{batch_id}"})
+    # Failure (missing key, bad stored selections, ...) — re-render the
+    # table; the schedule's last_error column carries the reason.
+    return _schedules_table(request, sched_reg)
+
+
+def _schedules_table(request: Request, sched_reg: ScheduleRegistry) -> Response:
+    return _templates(request).TemplateResponse(
+        request,
+        "partials/schedules_table.html",
+        {"schedules": sched_reg.list_schedules()},
+    )
+
+
+# ---------- end schedule routes ----------
+
+
 @router.get("/api/jobs/{job_id}/export.json")
 def export_job_json(
     job_id: str, registry: JobRegistry = Depends(get_registry)
@@ -854,6 +1062,50 @@ def _partition_jobs(registry: JobRegistry) -> tuple:
     terminal_today.sort(key=key, reverse=True)
     older.sort(key=key, reverse=True)
     return active, terminal_today, older
+
+
+def _row_ticker(row) -> str:
+    """Ticker symbol for a history row, whichever shape it has.
+
+    `RecentRunRow` carries a typed `.ticker`; `JobState` nests it on
+    `.selections` (a `RunSelections` model — or, for DB-reconstructed
+    jobs with an evolved schema, possibly a plain dict).
+    """
+    ticker = getattr(row, "ticker", None)
+    if not ticker:
+        sel = getattr(row, "selections", None)
+        ticker = getattr(sel, "ticker", None)
+        if not ticker and isinstance(sel, dict):
+            ticker = sel.get("ticker")
+    return str(ticker or "?").strip().upper()
+
+
+def _group_history(rows: list) -> list:
+    """Bucket history rows by ticker for the expandable History table.
+
+    Returns ``[{ticker, company_name, rows, count, latest}, ...]``.
+    `rows` arrive newest-first from `_partition_jobs`, so each group's
+    first row is its latest run and dict insertion order puts the most
+    recently active ticker first — one pass, no re-sort.
+    """
+    groups: dict = {}
+    for row in rows:
+        ticker = _row_ticker(row)
+        g = groups.get(ticker)
+        if g is None:
+            g = groups[ticker] = {
+                "ticker": ticker,
+                "company_name": None,
+                "rows": [],
+                "latest": row,
+            }
+        g["rows"].append(row)
+        if not g["company_name"]:
+            g["company_name"] = getattr(row, "company_name", None)
+    out = list(groups.values())
+    for g in out:
+        g["count"] = len(g["rows"])
+    return out
 
 
 def _available_providers() -> list:

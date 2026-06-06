@@ -38,6 +38,9 @@ a:hover { text-decoration: underline; }
 }
 .brand { font-weight: 700; font-size: 1.1rem; color: var(--text); }
 .tagline { color: var(--muted); font-size: 0.85rem; }
+.topnav { margin-left: auto; display: flex; gap: 1rem; }
+.topnav a { color: var(--muted); font-size: 0.9rem; }
+.topnav a:hover { color: var(--accent); text-decoration: none; }
 
 main {
   max-width: 1200px;
@@ -274,3 +277,52 @@ table.sortable thead th.sort-desc::after { content: " \25BC"; font-size: 0.75em;
 .status.status-error { color: var(--error); }
 .status.status-cancelled { color: var(--warn); }
 .status.status-queued { color: var(--muted); }
+
+/* Schedules table */
+.schedule-tickers {
+  max-width: 18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+.schedule-actions { white-space: nowrap; }
+.link-btn {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+.link-btn:hover { text-decoration: underline; }
+.link-btn.danger { color: var(--error); }
+
+/* Grouped history table — one expandable line per ticker. */
+.history-grouped .group-row { cursor: pointer; user-select: none; }
+.history-grouped .group-row:hover td { background: var(--panel-2); }
+.history-grouped .group-row .chevron {
+  color: var(--muted);
+  width: 1.2rem;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+.history-grouped .group-row.expanded .chevron { transform: rotate(90deg); }
+.history-grouped .group-row .group-ticker { font-weight: 600; }
+.history-grouped .group-row .group-company { color: var(--muted); font-weight: 400; margin-left: 0.4rem; }
+.history-grouped .count-badge {
+  display: inline-block;
+  min-width: 1.4rem;
+  text-align: center;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.history-grouped .group-child > td { background: rgba(31, 35, 44, 0.45); }
+.history-grouped .group-child .jobs-table { margin: 0.25rem 0 0.5rem; font-size: 0.85rem; }
+.history-grouped .group-child .jobs-table tr:last-child td { border-bottom: 0; }

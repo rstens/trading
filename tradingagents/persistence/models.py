@@ -229,6 +229,39 @@ class RunEmbedding(Base):
 # `index=True` on the column above, so we don't declare it again here.
 
 
+class Schedule(Base):
+    """A recurring unattended analysis — one row per schedule the user
+    creates on /schedules.
+
+    The in-memory `webui.schedules.ScheduleRegistry` is authoritative
+    while the process runs; this table is the durable mirror so
+    schedules survive restarts. Typed columns are the fields the
+    scheduler loop filters on (`enabled`, `next_run_at`); everything
+    else (tickers, cadence, time-of-day, selections, last_batch_id,
+    last_error) lives in the JSONB payload per the schema convention.
+    """
+
+    __tablename__ = "schedules"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid7,
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    next_run_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True,
+    )
+    last_run_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+    )
+    # payload = {"name": ..., "tickers": [...], "cadence": ...,
+    #            "time_of_day": "HH:MM", "weekday": 0-6,
+    #            "selections": {...}, "last_batch_id": ..., "last_error": ...}
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
 class WebUISettings(Base):
     """Singleton row holding the last-submitted form values. The
     `id = 1` CHECK ensures there's only ever one row — keeps the data

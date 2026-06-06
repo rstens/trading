@@ -8,6 +8,30 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- **Scheduled analyses** (`/schedules` in the web UI). Define a ticker
+  list + the usual selection controls + a cadence (daily, weekdays, or
+  weekly at a server-local time of day) and the server runs it
+  unattended: a daemon ticker thread checks every 30 s and fires due
+  schedules as ordinary batches (3-way parallelism, rate-limit pause,
+  per-ticker jobs in Recent jobs / History), using the fire date as the
+  analysis date. Schedules survive restarts — stored in the new
+  `schedules` table when `TRADINGAGENTS_DATABASE_URL` is set (Alembic
+  migration `0003`), else in `~/.tradingagents/webui_schedules.json` —
+  and a run that was due during downtime is caught up once at startup.
+  Per-schedule actions: run now (extra run, cadence unchanged),
+  pause/resume (resume recomputes the next slot — no surprise
+  catch-up fire), delete. Fire-time failures (missing API key, batch
+  submission error) are recorded on the schedule row and never spin
+  the loop.
+- **History grouped by ticker.** The History panel on the index page
+  now shows one expandable line per ticker (ticker, company name,
+  analysis count, latest run, latest status/decision); clicking the
+  line unfolds the full per-analysis table for that symbol. Repeated
+  scheduled runs of the same watchlist no longer flood the table with
+  near-identical rows.
+
 ### Changed
 
 - **UUIDv7 primary keys** for `runs` and `batches`. The Python-side

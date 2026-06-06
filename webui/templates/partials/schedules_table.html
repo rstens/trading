@@ -1,0 +1,67 @@
+{% if schedules %}
+<table class="jobs-table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Tickers</th>
+      <th>Cadence</th>
+      <th>Status</th>
+      <th>Next run</th>
+      <th>Last run</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in schedules %}
+    <tr>
+      <td>{{ s.display_name }}</td>
+      <td class="schedule-tickers" title="{{ s.tickers | join(', ') }}">
+        {{ s.tickers | join(", ") }}
+      </td>
+      <td>{{ s.cadence_label }}</td>
+      <td>
+        <span class="status status-{{ 'running' if s.enabled else 'queued' }}">
+          {{ "enabled" if s.enabled else "paused" }}
+        </span>
+        {% if s.last_error %}
+          <span class="status status-error" title="{{ s.last_error }}">last run failed</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if s.enabled and s.next_run_at %}{{ s.next_run_at | local_dt_full }}{% else %}—{% endif %}
+      </td>
+      <td>
+        {% if s.last_run_at %}
+          {{ s.last_run_at | local_dt_full }}
+          {% if s.last_batch_id %}
+            <a href="/batches/{{ s.last_batch_id }}">batch</a>
+          {% endif %}
+        {% else %}—{% endif %}
+      </td>
+      <td class="schedule-actions">
+        <button class="link-btn"
+                hx-post="/api/schedules/{{ s.id }}/run"
+                hx-target="#schedules-table"
+                hx-swap="morph:innerHTML"
+                hx-confirm="Run '{{ s.display_name }}' now? This submits a batch immediately.">
+          run now</button>
+        <button class="link-btn"
+                hx-post="/api/schedules/{{ s.id }}/toggle"
+                hx-target="#schedules-table"
+                hx-swap="morph:innerHTML">
+          {{ "pause" if s.enabled else "resume" }}</button>
+        <button class="link-btn danger"
+                hx-post="/api/schedules/{{ s.id }}/delete"
+                hx-target="#schedules-table"
+                hx-swap="morph:innerHTML"
+                hx-confirm="Delete schedule '{{ s.display_name }}'?">
+          delete</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="dim">No schedules yet — create one above. Schedules fire while the
+server is running and survive restarts.</p>
+{% endif %}

@@ -118,16 +118,20 @@
   </details>
 </section>
 
-{% macro jobs_table(rows) %}
+{% macro jobs_table(rows, show_ticker=True) %}
 <table class="jobs-table sortable">
   <thead>
-    <tr><th>Started</th><th>Ticker</th><th>Date</th><th>Status</th><th>Decision</th><th></th></tr>
+    <tr>
+      <th>Started</th>
+      {% if show_ticker %}<th>Ticker</th>{% endif %}
+      <th>Date</th><th>Status</th><th>Decision</th><th></th>
+    </tr>
   </thead>
   <tbody>
     {% for j in rows %}
     <tr>
       <td>{% if j.started_at %}{{ j.started_at | local_dt_full }}{% else %}—{% endif %}</td>
-      <td>{{ j.selections.ticker }}</td>
+      {% if show_ticker %}<td>{{ j.selections.ticker }}</td>{% endif %}
       <td>{{ j.selections.analysis_date }}</td>
       <td class="status status-{{ j.status }}">{{ j.status_label }}</td>
       <td>{{ j.decision or "—" }}</td>
@@ -150,8 +154,45 @@
 {% if history %}
 <section class="panel">
   <details class="collapse">
-    <summary><h2>History <span class="dim">({{ history | length }})</span></h2></summary>
-    {{ jobs_table(history) }}
+    <summary>
+      <h2>History
+        <span class="dim">({{ history | length }} analyses · {{ history_groups | length }} ticker{{ "s" if history_groups | length != 1 else "" }})</span>
+      </h2>
+    </summary>
+    <table class="jobs-table history-grouped">
+      <thead>
+        <tr>
+          <th class="no-sort"></th>
+          <th>Ticker</th>
+          <th>Analyses</th>
+          <th>Latest run</th>
+          <th>Status</th>
+          <th>Latest decision</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in history_groups %}
+        {% set gid = "hg-" ~ loop.index %}
+        <tr class="group-row" data-group="{{ gid }}">
+          <td><span class="chevron">&#9656;</span></td>
+          <td>
+            <span class="group-ticker">{{ g.ticker }}</span>
+            {% if g.company_name %}<span class="group-company">{{ g.company_name }}</span>{% endif %}
+          </td>
+          <td><span class="count-badge">{{ g.count }}</span></td>
+          <td>{% if g.latest.started_at %}{{ g.latest.started_at | local_dt_full }}{% else %}—{% endif %}</td>
+          <td class="status status-{{ g.latest.status }}">{{ g.latest.status_label }}</td>
+          <td>{{ g.latest.decision or "—" }}</td>
+        </tr>
+        <tr class="group-child" data-parent="{{ gid }}" hidden>
+          <td></td>
+          <td colspan="5">
+            {{ jobs_table(g.rows, show_ticker=False) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </details>
 </section>
 {% endif %}

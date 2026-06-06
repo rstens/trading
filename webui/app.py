@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import markdown as md_lib
@@ -43,6 +44,19 @@ def _local_dt_full_filter(dt) -> Markup:
     return _emit_time(dt, "local-ts-full", "%Y-%m-%d %H:%M:%S")
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Start the schedule ticker when the server actually serves.
+
+    Lifespan (not module import) so constructing the app in tests
+    doesn't spin a background thread that fires the developer's real
+    schedules. The thread is a daemon — no teardown needed.
+    """
+    from webui.schedules import get_schedule_registry  # local: avoid import cycle
+    get_schedule_registry().ensure_ticker_started()
+    yield
+
+
 def create_app() -> FastAPI:
     """Construct the FastAPI app, mount static files, and register routes."""
     logging.basicConfig(
@@ -54,6 +68,7 @@ def create_app() -> FastAPI:
         title="TradingAgents",
         description="Multi-Agents LLM Financial Trading Framework — Web UI",
         version="0.3.0",
+        lifespan=_lifespan,
     )
 
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")

@@ -15,6 +15,11 @@
   <header class="topbar">
     <a href="/" class="brand">TradingAgents</a>
     <span class="tagline">Multi-Agents LLM Financial Trading Framework</span>
+    <nav class="topnav">
+      <a href="/">Analyze</a>
+      <a href="/batch">Batch</a>
+      <a href="/schedules">Schedules</a>
+    </nav>
   </header>
   <main>
     {% block content %}{% endblock %}
@@ -140,6 +145,33 @@
       }
       document.body.addEventListener('htmx:afterSwap', function (e) { init(e.target); });
       document.body.addEventListener('htmx:afterSettle', function (e) { init(e.target); });
+    })();
+
+    // Expandable ticker groups in the History table. Clicking a
+    // `.group-row` toggles the matching `.group-child` row (which holds
+    // a nested per-analysis table). Clicks on links inside the row are
+    // left alone so "open" anchors keep working.
+    (function () {
+      function wire(root) {
+        (root || document).querySelectorAll('tr.group-row').forEach(function (row) {
+          if (row.dataset.groupWired === '1') return;
+          row.dataset.groupWired = '1';
+          row.addEventListener('click', function (ev) {
+            if (ev.target.closest('a, button')) return;
+            var key = row.getAttribute('data-group');
+            var expanded = row.classList.toggle('expanded');
+            document.querySelectorAll('tr.group-child[data-parent="' + key + '"]')
+              .forEach(function (child) { child.hidden = !expanded; });
+          });
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { wire(); });
+      } else {
+        wire();
+      }
+      document.body.addEventListener('htmx:afterSwap', function (e) { wire(e.target); });
+      document.body.addEventListener('htmx:afterSettle', function (e) { wire(e.target); });
     })();
   </script>
 </body>

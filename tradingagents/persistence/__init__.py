@@ -31,6 +31,7 @@ from tradingagents.persistence.models import (
     RunEmbedding,
     RunReport,
     RunTokenUsage,
+    Schedule,
     WebUISettings,
 )
 from tradingagents.persistence.batches import (
@@ -67,6 +68,11 @@ from tradingagents.persistence.runs import (
     persist_run_completion,
     update_company_name,
 )
+from tradingagents.persistence.schedules import (
+    delete_schedule_db,
+    list_schedules_db,
+    upsert_schedule_db,
+)
 from tradingagents.persistence.settings import (
     load_settings_db,
     save_settings_db,
@@ -82,6 +88,7 @@ __all__ = [
     "RunEmbedding",
     "RunReport",
     "RunTokenUsage",
+    "Schedule",
     "WebUISettings",
     # Engine + session
     "get_engine",
@@ -117,6 +124,10 @@ __all__ = [
     "find_similar",
     "get_embedding_service",
     "persist_embeddings_for_run",
+    # Schedules DAO
+    "delete_schedule_db",
+    "list_schedules_db",
+    "upsert_schedule_db",
     # Settings
     "load_settings_db",
     "save_settings_db",
