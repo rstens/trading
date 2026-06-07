@@ -19,6 +19,7 @@ from .risk_mgmt.neutral_debator import create_neutral_debator
 
 from .managers.research_manager import create_research_manager
 from .managers.portfolio_manager import create_portfolio_manager
+from .managers.hedging_agent import create_hedging_agent
 
 from .trader.trader import create_trader
 
@@ -36,6 +37,7 @@ __all__ = [
     "create_neutral_debator",
     "create_news_analyst",
     "create_aggressive_debator",
+    "create_hedging_agent",
     "create_portfolio_manager",
     "create_conservative_debator",
     "create_sentiment_analyst",

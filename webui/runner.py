@@ -57,6 +57,7 @@ NODE_LABELS = {
     "Conservative Analyst":  "Conservative Analyst",
     "Neutral Analyst":       "Neutral Analyst",
     "Portfolio Manager":     "Portfolio Manager",
+    "Hedging Agent":         "Hedging Agent",
 }
 
 
@@ -79,6 +80,7 @@ TAB_SECTIONS: List[tuple[str, str, str]] = [
     ("conservative", "Conservative Analyst",  "conservative_history"),
     ("neutral",      "Neutral Analyst",       "neutral_history"),
     ("portfolio",    "Portfolio Manager",     "final_trade_decision"),
+    ("hedging",      "Hedging Agent",         "hedging_report"),
 ]
 
 
@@ -89,6 +91,7 @@ _FLAT_SECTION_FIELDS = (
     "market_report", "sentiment_report", "news_report",
     "fundamentals_report", "competition_report",
     "investment_plan", "trader_investment_plan", "final_trade_decision",
+    "hedging_report",
 )
 
 # Mapping from nested-state container → sub-keys to lift onto partial_state.

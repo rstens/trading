@@ -86,6 +86,7 @@ class GraphSetup:
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
+        hedging_agent_node = create_hedging_agent(self.deep_thinking_llm)
 
         workflow = StateGraph(AgentState)
 
@@ -102,6 +103,7 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node("Hedging Agent", hedging_agent_node)
 
         # Fan-out: parallel start → each analyst subgraph runs concurrently.
         for analyst_key in selected_analysts:
@@ -161,6 +163,10 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Portfolio Manager", END)
+        # Hedging Agent runs last: it reads every upstream output (analyst
+        # reports, plans, risk debate, final decision) and produces a
+        # downside-protection strategy proportional to observed weakness.
+        workflow.add_edge("Portfolio Manager", "Hedging Agent")
+        workflow.add_edge("Hedging Agent", END)
 
         return workflow

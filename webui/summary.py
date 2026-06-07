@@ -65,6 +65,9 @@ SENTIMENT REPORT:
 
 COMPETITION REPORT:
 {competition_report}
+
+HEDGING STRATEGY (from Hedging Agent):
+{hedging_report}
 """
 
 
@@ -104,6 +107,7 @@ def generate_summary(config: Dict[str, Any], final_state: Dict[str, Any]) -> str
         news_report=_section(final_state, "news_report"),
         sentiment_report=_section(final_state, "sentiment_report"),
         competition_report=_section(final_state, "competition_report"),
+        hedging_report=_section(final_state, "hedging_report"),
         language_instruction=language_instruction,
     )
 

@@ -69,10 +69,15 @@ class TestQueriesForTicker:
             "global_news_queries_canada": ["canada"],
         })
         config = get_config()
+        # Every Canadian exchange suffix Yahoo qualifies routes to the
+        # Canada set: TSX, TSX Venture, CSE, Cboe Canada / NEO.
         assert queries_for_ticker("RY.TO", config) == ["canada"]
         assert queries_for_ticker("WEED.V", config) == ["canada"]
+        assert queries_for_ticker("HHE.CN", config) == ["canada"]
+        assert queries_for_ticker("ABC.NE", config) == ["canada"]
         # Case-insensitive, whitespace-tolerant
         assert queries_for_ticker(" ry.to ", config) == ["canada"]
+        assert queries_for_ticker("hhe.cn", config) == ["canada"]
 
     def test_non_canadian_and_missing_ticker_use_default(self, news_config):
         set_config({

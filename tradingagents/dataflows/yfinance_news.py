@@ -130,7 +130,7 @@ def get_global_news_yfinance(
         limit: Maximum number of articles to return. ``None`` falls back to
             ``global_news_article_limit`` from the active config.
         ticker: Instrument being analyzed; routes Canadian listings
-            (``.TO`` / ``.V``) to the Canada-focused query set. ``None``
+            (``.TO`` / ``.V`` / ``.CN`` / ``.NE``) to the Canada-focused query set. ``None``
             uses the default macro set.
 
     Returns:

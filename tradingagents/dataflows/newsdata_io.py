@@ -7,10 +7,16 @@ filtering, considerably better relevance than yfinance's fuzzy Search.
 Note the market endpoint does NOT accept the ``category`` parameter
 (it is already market-scoped).
 
-The official client handles retries with exponential backoff and
-Retry-After parsing for 429s; retry counts are kept low here so a
-rate-limited analyst tool call fails fast instead of stalling the
-pipeline for minutes.
+Rate-limit handling is deliberately fail-fast. The official client,
+on a 429, sleeps the server's ``Retry-After`` (commonly several
+*minutes* on the free tier) *between* attempts and only raises once
+``attempt >= max_retries``. With ``max_retries=1`` it raises
+``NewsdataRateLimitError`` on the very first 429 with no sleep — we
+catch it, stop querying, and let the analyst proceed with whatever it
+has. Retrying within a single run is pointless anyway: the rate window
+won't reset before the run finishes. (Trade-off: no retry on a
+transient network blip either, which is an acceptable price for never
+freezing an analyst tool call for minutes.)
 
 Free-tier constraints honoured here:
 
@@ -39,8 +45,11 @@ from .news_queries import is_canadian_listing, queries_for_ticker
 
 log = logging.getLogger(__name__)
 
+# 1 = a single attempt, so a 429 raises NewsdataRateLimitError immediately
+# instead of sleeping the server's multi-minute Retry-After before retrying.
+# The client defaults to 5; see the module docstring for the rationale.
+_MAX_RETRIES = 1
 _REQUEST_TIMEOUT = 15  # seconds
-_MAX_RETRIES = 2  # keep tool calls snappy; the client defaults to 5
 _FREE_TIER_MAX_SIZE = 10  # articles per request on the free plan
 
 
@@ -61,8 +70,9 @@ def get_global_news_newsdata(
     Same contract and per-query allocation as the yfinance implementation:
     queries are consulted in priority order, taking up to
     ``global_news_articles_per_query`` fresh articles from each until
-    ``limit`` is reached. Canadian listings (.TO / .V) use the
-    Canada-focused query set and the ``country_canada`` country filter.
+    ``limit`` is reached. Canadian listings (.TO / .V / .CN / .NE) use
+    the Canada-focused query set and the ``country_canada`` country
+    filter.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format

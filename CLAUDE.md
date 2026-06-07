@@ -42,6 +42,7 @@ Analyst chain (user-selected, sequential)
 → Trader                                       (quick LLM, structured output)
 → Aggressive ⇄ Conservative ⇄ Neutral debaters (max_risk_discuss_rounds)
 → Portfolio Manager                           (deep LLM, structured output → final_trade_decision)
+→ Hedging Agent                               (deep LLM, free-text → hedging_report; downside-protection strategy sized to observed weakness)
 ```
 
 Edges and conditional routing live in `graph/setup.py` and `graph/conditional_logic.py`. The shared `AgentState` (`agents/utils/agent_states.py`) is a `MessagesState` plus per-report fields (`market_report`, `sentiment_report`, `news_report`, `fundamentals_report`, `investment_plan`, `trader_investment_plan`, `final_trade_decision`) and the nested `InvestDebateState` / `RiskDebateState` dicts. Adding a node means adding an entry to `AgentState`, a builder under `agents/`, and edges in `setup.py`.

@@ -109,7 +109,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "oil commodities supply chain energy",
     ],
     # Canada-focused queries, used instead of the default set when the
-    # analyzed ticker is a Canadian listing (.TO / .V). Ordered by priority.
+    # analyzed ticker is a Canadian listing (.TO / .V / .CN / .NE).
+    # Ordered by priority.
     "global_news_queries_canada": [
         "Bank of Canada interest rate decision overnight rate",
         "Canada GDP growth Statistics Canada economic outlook",
@@ -179,7 +180,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # by the market-news endpoint /api/1/market — already finance-scoped,
     # so there is no category filter). `country` applies to the default
     # macro set; `country_canada` when the analyzed ticker is a Canadian
-    # listing (.TO / .V).
+    # listing (.TO / .V / .CN / .NE).
     "newsdata_params": {
         "language": "en",
         "country": "us,gb",

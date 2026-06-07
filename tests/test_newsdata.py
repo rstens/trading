@@ -141,6 +141,26 @@ class TestNewsdataGlobalNews:
         assert out == "yfinance fallback output"
         assert called["args"] == ("2026-06-06", 7, 5, "RY.TO")
 
+    def test_client_constructed_with_failfast_retries(self, monkeypatch, news_config, api_key):
+        # max_retries=1 is the load-bearing setting: it makes a 429 raise
+        # immediately instead of sleeping the server's multi-minute
+        # Retry-After. Assert we pass it so a future edit can't silently
+        # reintroduce the stall.
+        seen = {}
+
+        class _FakeClient:
+            def __init__(self, apikey, **kwargs):
+                seen.update(kwargs)
+
+            def market_api(self, **kwargs):
+                return {"status": "success", "results": [_item("x")]}
+
+        monkeypatch.setattr(newsdata_io, "NewsDataApiClient", _FakeClient)
+        set_config({"global_news_queries": ["q1"], "global_news_article_limit": 1,
+                    "global_news_articles_per_query": 1})
+        get_global_news_newsdata("2026-06-06")
+        assert seen.get("max_retries") == 1
+
     def test_rate_limit_stops_remaining_queries(self, monkeypatch, news_config, api_key):
         from newsdataapi import NewsdataRateLimitError
 

@@ -34,6 +34,17 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Added
 
+- **Hedging Agent.** A new final pipeline node (deep LLM) that runs
+  after the Portfolio Manager, reads every upstream output (analyst
+  reports, research plan, trader proposal, full risk debate, final
+  decision), rates overall weakness LOW/MODERATE/ELEVATED/SEVERE from
+  the cited evidence, and designs a downside-protection strategy sized
+  to that rating (no hedge when LOW; stops/trims/OTM puts → puts/collars/
+  index-sector hedges → capital preservation as weakness rises), with
+  concrete legs, costs, triggers, unwind conditions, and residual-risk
+  notes. Surfaced as a "Hedging Agent" tab in the web analysis window,
+  a section in the CLI report + saved bundle (`6_hedging/`), and an
+  input to the Summary. New `hedging_report` state field.
 - **newsdata.io as a news vendor** (`get_global_news` only, via the
   official `newsdataapi` client and the finance-scoped `/api/1/market`
   endpoint — note it rejects the `category` parameter). Now the default
@@ -52,7 +63,9 @@ Breaking changes within the 0.x line are called out explicitly.
 
 - **Global news is ticker-aware and actually consults the query list.**
   `get_global_news` now takes the analyzed ticker: Canadian listings
-  (`.TO` / `.V`) use the new Canada-focused
+  (`.TO` / `.V` / `.CN` / `.NE` — every Canadian exchange Yahoo
+  qualifies: TSX, TSX Venture, CSE, Cboe Canada/NEO) use the new
+  Canada-focused
   `global_news_queries_canada` set, everything else the default macro
   set. The fetch loop takes up to `global_news_articles_per_query`
   (default 2) fresh articles per query in priority order until
@@ -61,6 +74,11 @@ Breaking changes within the 0.x line are called out explicitly.
   Shared routing logic lives in `dataflows/news_queries.py`. Also fixed
   a latent crash in the Alpha Vantage global-news path when the tool's
   `None` defaults reached `timedelta(days=None)`.
+- **newsdata.io rate limits now fail fast.** The vendor constructs the
+  client with `max_retries=1`, so a 429 raises immediately instead of
+  sleeping the server's `Retry-After` (often several minutes on the
+  free tier) before a pointless retry — a rate-limited macro-news call
+  no longer freezes an analyst tool node for minutes mid-run.
 - **Agent prompts overhauled for modern LLM guidance** (all roles, format
   contracts unchanged). Removed the vestigial multi-assistant "swarm"
   scaffold from the five analysts — single coherent role statement, and

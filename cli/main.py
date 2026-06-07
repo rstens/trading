@@ -46,7 +46,7 @@ class MessageBuffer:
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
         "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
-        "Portfolio Management": ["Portfolio Manager"],
+        "Portfolio Management": ["Portfolio Manager", "Hedging Agent"],
     }
 
     # Analyst name mapping
@@ -70,6 +70,7 @@ class MessageBuffer:
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
+        "hedging_report": (None, "Hedging Agent"),
     }
 
     def __init__(self, max_length=100):
@@ -179,6 +180,7 @@ class MessageBuffer:
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
+                "hedging_report": "Hedging Strategy",
             }
             self.current_report = (
                 f"### {section_titles[latest_section]}\n{latest_content}"
@@ -230,6 +232,11 @@ class MessageBuffer:
         if self.report_sections.get("final_trade_decision"):
             report_parts.append("## Portfolio Management Decision")
             report_parts.append(f"{self.report_sections['final_trade_decision']}")
+
+        # Hedging Strategy
+        if self.report_sections.get("hedging_report"):
+            report_parts.append("## Hedging Strategy")
+            report_parts.append(f"{self.report_sections['hedging_report']}")
 
         self.final_report = "\n\n".join(report_parts) if report_parts else None
 
@@ -770,6 +777,13 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
+    # 6. Hedging Strategy
+    if final_state.get("hedging_report"):
+        hedging_dir = save_path / "6_hedging"
+        hedging_dir.mkdir(exist_ok=True)
+        (hedging_dir / "hedging.md").write_text(final_state["hedging_report"], encoding="utf-8")
+        sections.append(f"## VI. Hedging Strategy\n\n### Hedging Agent\n{final_state['hedging_report']}")
+
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
@@ -835,6 +849,11 @@ def display_complete_report(final_state):
         if risk.get("judge_decision"):
             console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
             console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+
+    # VI. Hedging Strategy
+    if final_state.get("hedging_report"):
+        console.print(Panel("[bold]VI. Hedging Strategy[/bold]", border_style="magenta"))
+        console.print(Panel(Markdown(final_state["hedging_report"]), title="Hedging Agent", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):
@@ -1196,6 +1215,15 @@ def run_analysis(checkpoint: bool = False):
                         message_buffer.update_agent_status("Conservative Analyst", "completed")
                         message_buffer.update_agent_status("Neutral Analyst", "completed")
                         message_buffer.update_agent_status("Portfolio Manager", "completed")
+                        message_buffer.update_agent_status("Hedging Agent", "in_progress")
+
+            # Hedging Agent (runs after the Portfolio Manager)
+            if chunk.get("hedging_report"):
+                message_buffer.update_report_section(
+                    "hedging_report", chunk["hedging_report"]
+                )
+                if message_buffer.agent_status.get("Hedging Agent") != "completed":
+                    message_buffer.update_agent_status("Hedging Agent", "completed")
 
             # Update the display
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
