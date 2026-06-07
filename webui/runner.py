@@ -32,6 +32,23 @@ from webui.models import PROVIDER_BASE_URL, RunSelections
 log = logging.getLogger("tradingagents.webui.runner")
 
 
+def _now() -> datetime:
+    """Aware UTC now. All job timestamps use this so the cache-hydration
+    path (also tz-aware UTC) and live runs never mix naive/aware values —
+    which would crash sorting and any timestamp comparison."""
+    return datetime.now(timezone.utc)
+
+
+def _epoch(dt: Optional[datetime]) -> float:
+    """Epoch seconds for sorting; tz-safe across naive/aware inputs.
+    Naive values are assumed local. Missing timestamps sort last."""
+    if dt is None:
+        return float("-inf")
+    if dt.tzinfo is None:
+        dt = dt.astimezone()  # interpret naive as local time
+    return dt.timestamp()
+
+
 class JobCancelled(Exception):
     """Raised by _ProgressCallback when the user requested cancellation.
 
@@ -312,9 +329,13 @@ class JobRegistry:
 
     def list_jobs(self) -> List[JobState]:
         with self.lock:
+            # Sort on epoch seconds, not datetimes: jobs hydrated from the
+            # disk cache carry tz-aware timestamps while live runs may have
+            # naive ones, and comparing the two raises TypeError. Reducing
+            # to floats sidesteps the awareness mismatch entirely.
             return sorted(
                 self._jobs.values(),
-                key=lambda j: j.started_at or datetime.min,
+                key=lambda j: _epoch(j.started_at),
                 reverse=True,
             )
 
@@ -466,7 +487,7 @@ class JobRegistry:
         job = self._jobs[job_id]
         try:
             job.status = "running"
-            job.started_at = datetime.now()
+            job.started_at = _now()
 
             # DB row at start — captures the run even if the worker
             # crashes mid-pipeline. No-op when DB is unconfigured.
@@ -549,7 +570,7 @@ class JobRegistry:
                 # stats includes the summary LLM call too.
                 job.stats = stats.get_stats()
                 job.status = "done"
-                job.finished_at = datetime.now()
+                job.finished_at = _now()
                 job.current_agent = None
             log.info("[%s] done", job.id)
 
@@ -625,7 +646,7 @@ class JobRegistry:
             with self.lock:
                 job.status = "cancelled"
                 job.error = "Analysis cancelled by user"
-                job.finished_at = datetime.now()
+                job.finished_at = _now()
                 job.current_agent = None
             self._persist_terminal_no_cache(job, status="cancelled")
         except Exception as e:
@@ -637,7 +658,7 @@ class JobRegistry:
                 with self.lock:
                     job.status = "cancelled"
                     job.error = "Analysis cancelled by user"
-                    job.finished_at = datetime.now()
+                    job.finished_at = _now()
                     job.current_agent = None
                 self._persist_terminal_no_cache(job, status="cancelled")
             else:
@@ -646,7 +667,7 @@ class JobRegistry:
                     job.status = "error"
                     job.error = str(e)
                     job.traceback = traceback.format_exc()
-                    job.finished_at = datetime.now()
+                    job.finished_at = _now()
                 self._persist_terminal_no_cache(job, status="error")
 
 

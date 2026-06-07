@@ -69,6 +69,16 @@ Breaking changes within the 0.x line are called out explicitly.
   Retry-After/backoff), and a 429 stops the remaining queries instead
   of stalling the analyst tool call.
 
+### Fixed
+
+- **500 on the index page when a batch mixed cached and freshly-run
+  tickers.** `JobRegistry.list_jobs` sorted `JobState`s by `started_at`,
+  but cache-hydrated jobs carry tz-aware UTC timestamps while live runs
+  used naive `datetime.now()` — comparing the two raised
+  `TypeError: can't compare offset-naive and offset-aware datetimes`.
+  Sorting now reduces to epoch seconds (tz-safe), and all job timestamps
+  are stamped aware-UTC so the two paths can't diverge again.
+
 ### Changed
 
 - **Global news is ticker-aware and actually consults the query list.**
