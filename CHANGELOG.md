@@ -34,6 +34,16 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Added
 
+- **Traffic-light assessment dots** on the analysis page. Each agent tab
+  (and its panel heading) now shows a green / amber / red dot summarizing
+  how constructive that section is about the stock. The synthesis agents'
+  explicit ratings are parsed directly (Research Manager / Portfolio
+  Manager 5-tier → Buy/Overweight green, Hold amber, Underweight/Sell
+  red; Trader action; Hedging Agent weakness level inverted); free-text
+  analyst/debate sections are scored with a small financial lexicon.
+  Deliberately pessimism-biased: a mixed or ambiguous read resolves to
+  amber and a slight bearish lean to red, so green requires a clear
+  constructive majority (`webui/assessment.py`).
 - **Hedging Agent.** A new final pipeline node (deep LLM) that runs
   after the Portfolio Manager, reads every upstream output (analyst
   reports, research plan, trader proposal, full risk debate, final

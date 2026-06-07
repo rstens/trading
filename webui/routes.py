@@ -27,6 +27,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 
+from webui.assessment import assess_job
 from webui.batch import BatchRegistry, get_batch_registry
 from webui.cache import json_safe
 from webui.models import PROVIDERS, RunSelections
@@ -161,6 +162,7 @@ def job_detail(
         {
             "job": job,
             "tab_sections": ALL_TAB_SECTIONS,
+            "assessments": assess_job(job.partial_state, ALL_TAB_SECTIONS),
         },
     )
 
@@ -230,6 +232,7 @@ def htmx_job_status(
         {
             "job": job,
             "tab_sections": ALL_TAB_SECTIONS,
+            "assessments": assess_job(job.partial_state, ALL_TAB_SECTIONS),
             "total_agents": total_agents,
             "progress_pct": job.progress_pct(total_agents),
         },
@@ -344,6 +347,7 @@ def cancel_job(
         {
             "job": job,
             "tab_sections": ALL_TAB_SECTIONS,
+            "assessments": assess_job(job.partial_state, ALL_TAB_SECTIONS),
             "total_agents": total_agents,
             "progress_pct": job.progress_pct(total_agents),
         },

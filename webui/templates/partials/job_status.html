@@ -74,6 +74,17 @@
   {% endif %}
 {% endfor %}
 
+{# Traffic-light assessment per section (green/amber/red); empty dict
+   when the route doesn't supply it. #}
+{% set assessments = assessments | default({}) %}
+
+{% macro tl_dot(key) %}
+  {%- set color = assessments.get(key) -%}
+  {%- if color -%}
+    <span class="tl-dot tl-{{ color }}" title="{{ color | capitalize }} — quick assessment of this section's read"></span>
+  {%- endif -%}
+{% endmacro %}
+
 {% if ready_sections %}
 <div class="tabs">
   <div class="tab-strip" role="tablist">
@@ -85,7 +96,7 @@
               data-tab-key="{{ key }}"
               class="tab-btn{% if loop.first %} active{% endif %}"
               onclick="taShowTab(this, 'tab-{{ key }}')">
-        {{ label }}
+        {{ label }}{{ tl_dot(key) }}
       </button>
     {% endfor %}
     {% if job.status == "done" %}
@@ -105,7 +116,7 @@
              hx-preserve="true"
              class="tab-panel{% if loop.first %} active{% endif %}"
              role="tabpanel">
-      <h2>{{ label }}</h2>
+      <h2>{{ label }}{{ tl_dot(key) }}</h2>
       <div class="markdown">{{ job.partial_state[src] | markdown | safe }}</div>
     </section>
   {% endfor %}

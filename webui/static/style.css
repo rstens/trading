@@ -326,3 +326,19 @@ table.sortable thead th.sort-desc::after { content: " \25BC"; font-size: 0.75em;
 .history-grouped .group-child > td { background: rgba(31, 35, 44, 0.45); }
 .history-grouped .group-child .jobs-table { margin: 0.25rem 0 0.5rem; font-size: 0.85rem; }
 .history-grouped .group-child .jobs-table tr:last-child td { border-bottom: 0; }
+
+/* Traffic-light assessment dot after analyst tab titles. Green = constructive,
+   amber = mixed/ambiguous, red = weak/bearish (pessimism-biased). */
+.tl-dot {
+  display: inline-block;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  margin-left: 0.45rem;
+  vertical-align: middle;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+.tl-green { background: var(--ok);    box-shadow: 0 0 4px rgba(47, 179, 128, 0.7); }
+.tl-amber { background: var(--warn);  box-shadow: 0 0 4px rgba(211, 156, 47, 0.7); }
+.tl-red   { background: var(--error); box-shadow: 0 0 4px rgba(227, 104, 104, 0.7); }
+h2 .tl-dot { width: 0.7rem; height: 0.7rem; }
