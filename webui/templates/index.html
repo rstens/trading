@@ -135,7 +135,9 @@
       <td>{{ j.selections.analysis_date }}</td>
       <td class="status status-{{ j.status }}">{{ j.status_label }}</td>
       <td>{{ j.decision or "—" }}</td>
-      <td><a href="/jobs/{{ j.id }}">open</a></td>
+      {# Prefer db_run_id so the link survives a server restart — the
+         in-memory JobState.id is ephemeral, runs.id is durable. #}
+      <td><a href="/jobs/{{ j.db_run_id or j.id }}">open</a></td>
     </tr>
     {% endfor %}
   </tbody>

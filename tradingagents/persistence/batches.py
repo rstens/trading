@@ -42,6 +42,7 @@ class PersistedBatchTicker:
     ticker: str
     status: str = "queued"
     job_id: Optional[str] = None
+    db_run_id: Optional[str] = None
     error: Optional[str] = None
     attempts: int = 0
     company_name: Optional[str] = None
@@ -94,6 +95,7 @@ class RecentBatchRow:
                 ticker=t.get("ticker", "?"),
                 status=t.get("status") or "queued",
                 job_id=t.get("job_id"),
+                db_run_id=t.get("db_run_id"),
                 error=t.get("error"),
                 attempts=int(t.get("attempts") or 0),
                 company_name=t.get("company_name"),

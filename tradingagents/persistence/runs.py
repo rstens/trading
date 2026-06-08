@@ -255,3 +255,33 @@ def list_recent_terminal_runs(limit: int = 40) -> List[RecentRunRow]:
     except Exception as e:  # noqa: BLE001
         log.warning("list_recent_terminal_runs failed: %s", e)
         return []
+
+
+def interrupt_in_flight_runs() -> int:
+    """Mark any non-terminal `runs` row as `error` — restart recovery.
+
+    A run that was `queued`/`running` when the process died can never
+    resolve itself: the in-memory `JobState` that owned it is gone, so
+    the row would otherwise sit at `running` forever and the detail page
+    would poll it indefinitely. Called once at web startup so orphaned
+    runs surface a terminal status sourced from the DB. Returns the count
+    reconciled. No-op + swallow on DB-off, mirroring the module contract.
+    """
+    try:
+        with session_scope() as s:
+            if s is None:
+                return 0
+            rows = s.execute(
+                select(Run).where(Run.status.in_(("queued", "running")))
+            ).scalars().all()
+            now = datetime.datetime.now(datetime.timezone.utc)
+            for run in rows:
+                run.status = "error"
+                run.error = "Server restarted while this run was in flight."
+                run.finished_at = now
+            if rows:
+                log.info("Reconciled %d in-flight run(s) as interrupted", len(rows))
+            return len(rows)
+    except Exception as e:  # noqa: BLE001
+        log.warning("interrupt_in_flight_runs failed: %s", e)
+        return 0

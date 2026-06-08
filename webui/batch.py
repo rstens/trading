@@ -78,6 +78,9 @@ class BatchTicker:
     # queued | running | done | error | cancelled | rate_limited
     status: str = "queued"
     job_id: Optional[str] = None
+    # Durable runs.id for this ticker's job. The "open" link prefers it
+    # over the ephemeral job_id so it survives a server restart.
+    db_run_id: Optional[str] = None
     error: Optional[str] = None
     attempts: int = 0
     company_name: Optional[str] = None
@@ -218,6 +221,7 @@ class BatchRegistry:
             "status": bt.status,
             "attempts": bt.attempts,
             "job_id": bt.job_id,
+            "db_run_id": bt.db_run_id,
             "error": bt.error,
             "company_name": bt.company_name,
         }
@@ -234,6 +238,7 @@ class BatchRegistry:
                 status=bt.status,
                 attempts=bt.attempts,
                 job_id=bt.job_id,
+                db_run_id=bt.db_run_id,
                 error=bt.error,
                 company_name=bt.company_name,
             )
@@ -436,6 +441,10 @@ class BatchRegistry:
             self._persist_ticker(batch, bt)
             return
         bt.job_id = job.id
+        # db_run_id is stamped on the job thread after insert_run, so it
+        # may not be set yet at this instant — best-effort here, captured
+        # reliably after the poll loop below.
+        bt.db_run_id = str(job.db_run_id) if getattr(job, "db_run_id", None) else None
         bt.status = "running"
         self._persist_ticker(batch, bt)
 
@@ -450,6 +459,9 @@ class BatchRegistry:
             time.sleep(BATCH_POLL_INTERVAL)
 
         bt.company_name = getattr(job, "company_name", None)
+        # By now the inner job has run insert_run; capture the durable id.
+        if getattr(job, "db_run_id", None):
+            bt.db_run_id = str(job.db_run_id)
 
         if job.status == "error" and _is_rate_limit_error(
             job.error or "", job.traceback or "",

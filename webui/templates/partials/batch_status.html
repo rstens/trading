@@ -60,8 +60,9 @@
       <td class="status status-{{ t.status }}">{{ t.status_label }}</td>
       <td>{{ t.attempts or 0 }}</td>
       <td>
-        {% if t.job_id %}
-          <a href="/jobs/{{ t.job_id }}">open</a>
+        {% if t.db_run_id or t.job_id %}
+          {# Prefer db_run_id — durable across restarts (see index.html). #}
+          <a href="/jobs/{{ t.db_run_id or t.job_id }}">open</a>
         {% else %}
           <span class="dim">—</span>
         {% endif %}

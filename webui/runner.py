@@ -327,6 +327,23 @@ class JobRegistry:
         with self.lock:
             return self._jobs.get(job_id)
 
+    def get_by_db_run_id(self, db_run_id: str) -> Optional[JobState]:
+        """Find a live job by its persisted `runs.id` (db_run_id).
+
+        The "open" links and the detail page key off ``db_run_id`` when a
+        job has one, so the URL survives a restart (it resolves from the
+        DB). While the job is still live, this lets that same URL find the
+        in-memory JobState so the page keeps showing live progress instead
+        of the static DB snapshot. Registry is small; a scan is fine.
+        """
+        if not db_run_id:
+            return None
+        with self.lock:
+            for job in self._jobs.values():
+                if job.db_run_id is not None and str(job.db_run_id) == str(db_run_id):
+                    return job
+        return None
+
     def list_jobs(self) -> List[JobState]:
         with self.lock:
             # Sort on epoch seconds, not datetimes: jobs hydrated from the

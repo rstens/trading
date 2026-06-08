@@ -83,7 +83,24 @@ async def _lifespan(app: FastAPI):
     Lifespan (not module import) so constructing the app in tests
     doesn't spin a background thread that fires the developer's real
     schedules. The thread is a daemon — no teardown needed.
+
+    Also reconciles any `runs` left `queued`/`running` by a previous
+    process (a restart killed their owning JobState): they're marked
+    `error` so the UI sources a terminal status from the DB instead of
+    polling a ghost forever. No-op when the DB is off.
     """
+    try:
+        from tradingagents.persistence import interrupt_in_flight_runs
+        n = interrupt_in_flight_runs()
+        if n:
+            logging.getLogger("tradingagents.webui").info(
+                "Startup: reconciled %d interrupted run(s)", n
+            )
+    except Exception as e:  # noqa: BLE001 — never block startup on this
+        logging.getLogger("tradingagents.webui").warning(
+            "Startup run reconciliation failed: %s", e
+        )
+
     from webui.schedules import get_schedule_registry  # local: avoid import cycle
     get_schedule_registry().ensure_ticker_started()
     yield

@@ -161,13 +161,20 @@ def job_detail(
     """Job-detail page: status block (polled) + tabs container.
 
     Resolution order:
-      1. In-memory JobRegistry (live progress for in-flight + recently
-         finished runs).
-      2. DB lookup by UUID for older runs that have rolled off the
-         registry (after server restart, or just a long-ago run).
-      3. 404.
+      1. In-memory JobRegistry by job id (live progress for in-flight +
+         recently finished runs).
+      2. In-memory JobRegistry by db_run_id — the "open" links key off
+         db_run_id when present, so a live job's durable URL still finds
+         its live JobState.
+      3. DB lookup by UUID for runs that have rolled off the registry
+         (after server restart, or just a long-ago run).
+      4. 404.
     """
-    job = registry.get(job_id) or _load_job_from_db(job_id)
+    job = (
+        registry.get(job_id)
+        or registry.get_by_db_run_id(job_id)
+        or _load_job_from_db(job_id)
+    )
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job id")
     return _templates(request).TemplateResponse(
@@ -236,7 +243,11 @@ def htmx_job_status(
     job_id: str, request: Request, registry: JobRegistry = Depends(get_registry)
 ) -> Response:
     """Polled fragment with progress bar + tabs once results are in."""
-    job = registry.get(job_id) or _load_job_from_db(job_id)
+    job = (
+        registry.get(job_id)
+        or registry.get_by_db_run_id(job_id)
+        or _load_job_from_db(job_id)
+    )
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job id")
     total_agents = _total_agents_for(job.selections.analysts)

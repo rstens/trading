@@ -79,6 +79,22 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Fixed
 
+- **"Open" in the jobs/batch tables 404'd (`Unknown job id`) after a
+  server restart** until the page was refreshed. The links and the
+  `/jobs/{id}` + `/htmx/jobs/{id}/status` routes keyed off the in-memory
+  `JobState.id`, which is ephemeral — once the registry was cleared by a
+  restart, the stale link resolved against neither the registry nor the
+  DB (which is keyed by `runs.id`). Links now prefer the durable
+  `db_run_id` (`runs.id`), the routes resolve registry-by-id →
+  registry-by-`db_run_id` (keeps live polling) → DB-by-`runs.id`, and
+  the same durable id is threaded through batch per-ticker rows. Run
+  status is now sourced from the DB when the session no longer has it.
+- **Orphaned `running` runs after a restart.** A run left `queued`/
+  `running` when the process died would sit at `running` forever (its
+  owning `JobState` is gone) and the detail page would poll it
+  indefinitely. `interrupt_in_flight_runs()` now reconciles them to
+  `error` on web startup (mirrors the existing batch recovery), so the
+  UI shows a terminal status from the DB.
 - **500 on the index page when a batch mixed cached and freshly-run
   tickers.** `JobRegistry.list_jobs` sorted `JobState`s by `started_at`,
   but cache-hydrated jobs carry tz-aware UTC timestamps while live runs
