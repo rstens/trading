@@ -77,6 +77,16 @@ Breaking changes within the 0.x line are called out explicitly.
   the log line for both `/healthz` and `/favicon.ico` so the 10 s health
   poll no longer floods the container log.
 
+### Changed
+
+- **Error runs drop out of History / Recent after 24 hours.** A failed
+  run is only worth looking at briefly, and post-restart reconciliation
+  marks interrupted runs `error` — left unbounded they pile up in the
+  listing. Error runs older than `ERROR_RUN_TTL` (24 h) are now filtered
+  from both the DB query (`list_recent_terminal_runs`) and the in-memory
+  registry merge (`_partition_jobs`); `done` / `cancelled` are unaffected
+  and the DB rows are kept for audit.
+
 ### Fixed
 
 - **"Open" in the jobs/batch tables 404'd (`Unknown job id`) after a

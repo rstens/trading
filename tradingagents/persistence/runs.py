@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 
 from tradingagents.agents.utils.rating import parse_rating
 from tradingagents.persistence.models import (
@@ -28,6 +28,10 @@ from tradingagents.persistence.session import session_scope
 
 
 log = logging.getLogger("tradingagents.persistence.runs")
+
+# How long a failed run stays referenced in the History / Recent listing.
+# After this it's filtered out of the UI (the DB row is kept for audit).
+ERROR_RUN_TTL = datetime.timedelta(hours=24)
 
 
 # ----- Write path ------------------------------------------------------
@@ -229,9 +233,24 @@ def list_recent_terminal_runs(limit: int = 40) -> List[RecentRunRow]:
         with session_scope() as s:
             if s is None:
                 return []
+            # Error runs are dropped from the listing once they're older
+            # than ERROR_RUN_TTL — a failed run is only useful to look at
+            # for a short window, and (post-restart reconciliation) they
+            # would otherwise pile up in History indefinitely. The rows
+            # stay in the DB for audit; they're just no longer referenced
+            # by the UI. `done` / `cancelled` are always listed.
+            cutoff = datetime.datetime.now(datetime.timezone.utc) - ERROR_RUN_TTL
             stmt = (
                 select(Run)
-                .where(Run.status.in_(("done", "error", "cancelled")))
+                .where(
+                    or_(
+                        Run.status.in_(("done", "cancelled")),
+                        and_(
+                            Run.status == "error",
+                            func.coalesce(Run.finished_at, Run.started_at) >= cutoff,
+                        ),
+                    )
+                )
                 .order_by(Run.started_at.desc())
                 .limit(limit)
             )

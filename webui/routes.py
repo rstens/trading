@@ -1075,11 +1075,20 @@ def _partition_jobs(registry: JobRegistry) -> tuple:
         if str(r.id) not in seen
     ]
 
+    # Drop error runs older than the TTL so they stop cluttering History.
+    # The DB rows are already filtered in list_recent_terminal_runs; this
+    # covers in-memory registry jobs from a long-lived process. Same TTL.
+    from tradingagents.persistence.runs import ERROR_RUN_TTL
+    error_cutoff = datetime.datetime.now(datetime.timezone.utc) - ERROR_RUN_TTL
+
     active, terminal_today, older = [], [], []
     for j in registry_rows:
         if j.status in _ACTIVE_STATUSES:
             active.append(j)
-        elif _is_today_local(j.started_at):
+            continue
+        if j.status == "error" and _normalize_ts(j.started_at) < error_cutoff:
+            continue
+        if _is_today_local(j.started_at):
             terminal_today.append(j)
         else:
             older.append(j)
