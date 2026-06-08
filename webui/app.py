@@ -16,6 +16,38 @@ from markupsafe import Markup
 
 _HERE = Path(__file__).resolve().parent
 
+# Request paths whose uvicorn access-log lines are suppressed — high-
+# frequency, zero-information probes. The Docker healthcheck hits
+# /healthz every 10 s; /favicon.ico is poked by bots and old clients.
+_QUIET_ACCESS_PATHS = frozenset({"/healthz", "/favicon.ico"})
+
+
+class _AccessLogPathFilter(logging.Filter):
+    """Drop uvicorn access-log records for a set of noisy paths.
+
+    uvicorn formats access logs with
+    ``record.args = (client_addr, method, path, http_version, status)``,
+    so the request path is the third positional arg. Anything we don't
+    recognize is passed through untouched.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and args[2] in _QUIET_ACCESS_PATHS:
+            return False
+        return True
+
+
+def _install_access_log_filter() -> None:
+    """Attach the path filter to uvicorn's access logger, once.
+
+    Idempotent: create_app() runs per-process (and many times under the
+    test client), so guard against stacking duplicate filters.
+    """
+    access_logger = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, _AccessLogPathFilter) for f in access_logger.filters):
+        access_logger.addFilter(_AccessLogPathFilter())
+
 
 def _emit_time(dt, css_class: str, fmt: str) -> Markup:
     """Render a `<time>` element with a class the base.html JS hook
@@ -63,6 +95,7 @@ def create_app() -> FastAPI:
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+    _install_access_log_filter()
 
     app = FastAPI(
         title="TradingAgents",

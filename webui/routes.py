@@ -64,6 +64,20 @@ def favicon_legacy() -> Response:
     return FileResponse(_FAVICON_PATH, media_type="image/svg+xml")
 
 
+@router.get("/healthz", include_in_schema=False)
+def healthz() -> JSONResponse:
+    """Liveness probe for the Docker healthcheck.
+
+    Returns 200 once the app's routes are registered. Deliberately does
+    no work (no DB, no registry access) so it stays cheap and can't be
+    made unhealthy by a degraded dependency — it answers "is the web
+    process serving?", not "is everything downstream up?". Its access-log
+    line is suppressed by the filter in `webui.app` so the 10 s poll
+    doesn't flood the log.
+    """
+    return JSONResponse({"status": "ok"})
+
+
 def _templates(request: Request) -> "Jinja2Templates":  # noqa: F821
     return request.app.state.templates
 

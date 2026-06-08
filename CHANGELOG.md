@@ -69,6 +69,14 @@ Breaking changes within the 0.x line are called out explicitly.
   Retry-After/backoff), and a 429 stops the remaining queries instead
   of stalling the analyst tool call.
 
+### Changed
+
+- **Dedicated `/healthz` liveness probe + quieter access log.** The
+  Docker healthcheck now hits `/healthz` (a cheap no-dependency 200)
+  instead of `/favicon.ico`, and a uvicorn access-log filter suppresses
+  the log line for both `/healthz` and `/favicon.ico` so the 10 s health
+  poll no longer floods the container log.
+
 ### Fixed
 
 - **500 on the index page when a batch mixed cached and freshly-run

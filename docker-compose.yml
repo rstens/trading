@@ -86,9 +86,10 @@ services:
     restart: unless-stopped
     healthcheck:
       # Pure-Python check — no need to bake curl/wget into the image.
-      # The favicon endpoint is cheap and returns 200 once routes are
-      # registered.
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/favicon.ico', timeout=2).status"]
+      # /healthz is a dedicated cheap liveness probe that returns 200 once
+      # routes are registered; its access-log line is suppressed in
+      # webui.app so the 10 s poll doesn't flood the log.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).status"]
       interval: 10s
       timeout: 3s
       retries: 6
